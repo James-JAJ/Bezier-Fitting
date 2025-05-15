@@ -4,6 +4,7 @@ import sys
 import os
 import base64
 from .server_tools import *
+
 #img process
 #inputimg:輸入圖片回傳二進制檔
 def inputimg(path):

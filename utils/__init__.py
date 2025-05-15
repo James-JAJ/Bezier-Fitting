@@ -6,7 +6,7 @@ from .ga import *
 from .image_tools import *
 from .math_tools import *
 from .svcfp import *
-from .server_tools import *
+
 # 如果你要直接 import utils 就能用這些工具：
 __all__ = [
     "bezier_curve_calculate",
@@ -25,8 +25,6 @@ __all__ = [
     "mean_min_dist",
     "interpolate_points",
     "perpendicular_distance",
-    "custom_print",
-    "set_console_output_ref",
     "rdp",
     "svcfp",
 ]
