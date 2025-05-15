@@ -21,12 +21,8 @@ set_console_output_ref(console_output_ref)
 image_base64 = []
 beizer_array = []
 version = "V25.4.4"
-<<<<<<< HEAD
-  
-=======
 
 
->>>>>>> parent of 17e0673 (主程式)
 app = Flask(__name__)
 
 @app.route('/ver.js')

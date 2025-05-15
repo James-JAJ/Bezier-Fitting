@@ -1,11 +1,3 @@
-<<<<<<< HEAD
-#custom_print:自定義的 print 函數，將輸出內容儲存到 console_output 變數中。
-def custom_print(*args, **kwargs):
-    global console_output
-    message = " ".join(map(str, args))  # 將所有參數轉換為字串並連接起來
-    print(message)
-    console_output += message + "\n"  # 將訊息加入到 console_output 字串中，並加上換行符號
-=======
 # server_tools.py
 # custom_print: 自定義的 print 函數，將輸出內容儲存到指定的全局變數中
 
@@ -29,4 +21,3 @@ def custom_print(*args, **kwargs):
         _console_output_ref[0] += str(message) + "\n"  # 將訊息加入到 console_output 字串中，並加上換行符號
     else:
         print("警告: console_output 引用尚未設置，請在 app.py 中調用 set_console_output_ref")
->>>>>>> parent of 17e0673 (主程式)
