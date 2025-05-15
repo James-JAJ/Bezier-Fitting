@@ -6,25 +6,23 @@ from flask import Flask, request, jsonify, send_from_directory, Response
 import time
 import threading
 import os
-from utils import *
-
-
+from utils import *  # 導入所有工具函數，包括 server_tools 中的函數
 
 #system initialization
 sys.stdout.reconfigure(encoding='utf-8')  # 改變輸出的
 
 #flask initialization
 console_output = ""  # 初始化一個空字串，用於儲存 console 內容
+# 創建一個列表來存儲 console_output，這樣可以通過引用來修改
+console_output_ref = [console_output]
+# 設置 console_output 的引用，讓 custom_print 函數可以修改它
+set_console_output_ref(console_output_ref)
+
 image_base64 = []
 beizer_array = []
 version = "V25.4.4"
 
-#custom_print:自定義的 print 函數，將輸出內容儲存到 console_output 變數中。
-def custom_print(*args, **kwargs):
-    global console_output
-    message = " ".join(map(str, args))  # 將所有參數轉換為字串並連接起來
-    print(message)
-    console_output += message + "\n"  # 將訊息加入到 console_output 字串中，並加上換行符號
+
 app = Flask(__name__)
 
 @app.route('/ver.js')
@@ -41,11 +39,13 @@ def serve_index():
     
 @app.route('/message')
 def get_message():
-    global console_output
+    global console_output_ref
     global image_base64
     global beizer_array
-    message = console_output  # 將 console_output 的內容複製一份
-    console_output = ""       # 清空 console_output 字串
+    
+    message = console_output_ref[0]  # 取得當前 console_output 的內容
+    console_output_ref[0] = ""       # 清空 console_output 字串
+    
     if beizer_array:
         beizers_list = []
         for x, y in beizer_array.pop(0):
@@ -60,7 +60,7 @@ def get_message():
 lock = threading.Lock()
 
 #處理軌跡上傳資訊 
-def process_upload(width, height, paths,testmode):
+def process_upload(width, height, paths, testmode):
     global beizer_array, image_base64
     with lock:
         try:
@@ -156,8 +156,6 @@ def upload():
     return jsonify({"message": "Received successfully\n"})
 
 if __name__ == '__main__':
-    
-    
     global model
     #CNN
     """
@@ -169,4 +167,3 @@ if __name__ == '__main__':
     #http_port = 32222 #for bezier.hmi.tw
     #http_port = 8000 #for localhost
     app.run(host="0.0.0.0", port=http_port, threaded=False)
-

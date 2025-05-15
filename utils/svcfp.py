@@ -77,7 +77,6 @@ def svcfp(paths, min_radius=10, max_radius=50, curvature_threshold=27, rdp_epsil
     original_indices = []
     i = 0
     check_paths_idx = 0
-    custom_print(paths[check_paths_idx])
     custom_print(simplified_paths[i])
     
     while check_paths_idx < len(paths) and i < len(simplified_paths):
