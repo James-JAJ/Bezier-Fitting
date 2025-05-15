@@ -5,7 +5,6 @@ from .bezier import *
 from .ga import *
 from .image_tools import *
 from .math_tools import *
-from .server_tools import *
 from .svcfp import *
 
 # 如果你要直接 import utils 就能用這些工具：
@@ -25,7 +24,6 @@ __all__ = [
     "add_mid_points",
     "mean_min_dist",
     "interpolate_points",
-    "custom_print",
     "perpendicular_distance",
     "rdp",
     "svcfp",

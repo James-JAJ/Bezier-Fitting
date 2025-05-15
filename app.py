@@ -18,7 +18,13 @@ console_output = ""  # 初始化一個空字串，用於儲存 console 內容
 image_base64 = []
 beizer_array = []
 version = "V25.4.4"
-  
+
+#custom_print:自定義的 print 函數，將輸出內容儲存到 console_output 變數中。
+def custom_print(*args, **kwargs):
+    global console_output
+    message = " ".join(map(str, args))  # 將所有參數轉換為字串並連接起來
+    print(message)
+    console_output += message + "\n"  # 將訊息加入到 console_output 字串中，並加上換行符號
 app = Flask(__name__)
 
 @app.route('/ver.js')
