@@ -1,0 +1,510 @@
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <title>貝茲擬合</title>
+<style>
+        body {
+            display: flex; /* 使用 Flexbox 讓 canvas 和 console 並排 */
+            align-items: flex-start; /* 讓內容靠上方對齊 */
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+        }
+        #main-container {
+            display: flex;
+            flex-direction: column;
+            width: calc(100% - 300px); /* 減去 console 的寬度 */
+            height: 95vh;
+        }
+        #container {
+            position: relative; /* 讓子元素可以使用絕對定位 */
+            flex-grow: 1; /* 讓容器填滿剩餘空間 */
+            height: calc(100% - 100px); /* 減去頂部標題和底部按鈕的空間 */
+        }
+        #svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+            z-index: 1; /* 設定 z-index 為 1 */
+            width: 100%;
+            height: 100%;
+        }
+        #canvas {
+            border: 1px solid black;
+            position: relative;
+            z-index: 0; /* 設定 z-index 為 0 */
+            width: 100%;
+            height: 100%;
+        }
+        #console {
+            background-color: black;
+            color: white;
+            width: 300px; /* 設定 console 的寬度 */
+            height: 100vh; /* 設定 console 的高度為整個視窗高度 */
+            overflow-y: scroll; /* 當內容超出高度時，出現滾動條 */
+            padding: 10px;
+            box-sizing: border-box;
+        }
+        .header {
+            text-align: center;
+            padding: 5px 0;
+            min-height: 70px; /* 確保標題有固定最小高度 */
+        }
+        .button-container {
+            display: flex; /* 使用 Flexbox 布局 */
+            align-items: center; /* 垂直方向對齊 */
+            justify-content: center; /* 水平方向對齊 */
+            padding: 10px 0;
+            min-height: 50px; /* 確保按鈕容器有固定最小高度 */
+        }
+
+        .button-container button, 
+        .button-container label {
+            margin: 0 5px; /* 設定按鈕之間的間距 */
+        }
+        
+        /* 確保按鈕初始可見 */
+        #btnsend, #downloadButton, #undo {
+            display: inline-block;
+        }
+    </style>
+    <script type='text/javascript' src='/ver.js'></script>
+    <script>
+        let ver = "網頁版本:V1.0.0.2";
+        let canvas, ctx, drawing = false, lastX = 0, lastY = 0 ,svg ,btnUndo,btnSend,btnDownload,consoleEl;
+        let clearOnDraw = true;
+        let intervalId = null;
+        let consoleCounter = 0; // 初始化計數器
+        
+        let overlayImage = new Image();
+        let paths = []; //總軌跡
+        let path=[];    //每筆筆跡
+        let currentStroke = []; // 當前筆畫的點位
+        
+        // 調整 canvas 大小的函數
+        function resizeCanvas() {
+            const container = document.getElementById('container');
+            const containerWidth = container.clientWidth;
+            const containerHeight = container.clientHeight;
+            
+            canvas.width = containerWidth;
+            canvas.height = containerHeight;
+            svg.setAttribute('width', containerWidth);
+            svg.setAttribute('height', containerHeight);
+            
+            // 重新繪製畫布背景
+            ctx.fillStyle = "white";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+        
+        //網頁載入後執行
+        window.onload = function() {
+            ver = ver + ' ; 後台版本：' + version;
+            document.getElementById('version').textContent = ver;
+            canvas = document.getElementById("canvas");
+            ctx = canvas.getContext("2d");
+            ctx.lineWidth = 1;
+            ctx.lineJoin = "round";
+            ctx.lineCap = "round";
+            ctx.strokeStyle = "black";
+            ctx.fillStyle = "white";
+            
+            svg = document.getElementById('svg');
+            btnUndo = document.getElementById("undo");
+            btnSend = document.getElementById("btnsend");
+            btnDownload = document.getElementById("downloadButton");
+            consoleEl = document.getElementById('console');
+            
+            // 初始調整 canvas 大小
+            resizeCanvas();
+            
+            // 監聽視窗大小變化
+            window.addEventListener('resize', resizeCanvas);
+            
+            canvas.addEventListener("mousedown", startDrawing);
+            canvas.addEventListener("mousemove", draw);
+            canvas.addEventListener("mouseup", stopDrawing);
+            canvas.addEventListener("mouseout", stopDrawing);
+            
+            canvas.addEventListener("touchstart", startDrawingTouch);
+            canvas.addEventListener("touchmove", drawTouch);
+            canvas.addEventListener("touchend", stopDrawing);
+            
+            //canvas 接受拖曳圖片
+            canvas.addEventListener('dragover', (e) => {
+              e.preventDefault();
+            });
+            //canvas 顯示拖曳圖片
+            canvas.addEventListener('drop', (e) => {
+              e.preventDefault();
+
+              const file = e.dataTransfer.files[0];
+
+              if (file.type.startsWith('image/')) {
+                const reader = new FileReader();
+
+                reader.onload = (event) => {
+                  const img = new Image();
+                  img.onload = () => {
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                  };
+                  img.src = event.target.result;
+                };
+
+                reader.readAsDataURL(file);
+              } else {
+                alert('請拖放圖片檔案');
+              }
+            });
+  
+            //設定 download svg 按鈕
+            btnDownload.addEventListener('click', () => {
+              const svgData = new XMLSerializer().serializeToString(svg);
+              const svgBlob = new Blob([svgData], { type: 'image/svg+xml' });
+              const svgUrl = URL.createObjectURL(svgBlob);
+
+              const link = document.createElement('a');
+              link.href = svgUrl;
+              link.download = 'image.svg';
+              link.style.display = 'none';
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+            });
+            
+            toggleClearOnDraw(); // 初始化按鈕顯示狀態
+        };
+        //mousedown
+        function startDrawing(event) {
+            if (clearOnDraw) {
+                clearCanvas();
+                path = []; // 清除軌跡
+            }
+            
+            drawing = true;
+            [lastX, lastY] = [event.offsetX, event.offsetY];
+            
+            path.push([lastX, lastY]); // 儲存軌跡
+            
+            // 清空當前筆畫並添加第一個點
+            currentStroke = [];
+            currentStroke.push([lastX, lastY]);
+        }
+        function startDrawingTouch(event) {
+            event.preventDefault();
+            if (clearOnDraw) {
+                clearCanvas();
+                path = []; // 清除軌跡
+            }
+            const touch = event.touches[0];
+            const rect = canvas.getBoundingClientRect();
+            
+            lastX = Math.trunc(touch.clientX - rect.left);
+            lastY = Math.trunc(touch.clientY - rect.top);
+            
+            path.push([lastX, lastY]); // 儲存軌跡
+            
+            // 清空當前筆畫並添加第一個點
+            currentStroke = [];
+            currentStroke.push([lastX, lastY]);
+            
+            drawing = true;
+        }
+
+        function draw(event) {
+            if (!drawing) return;
+            ctx.beginPath();
+            ctx.moveTo(lastX, lastY);
+            ctx.lineTo(event.offsetX, event.offsetY);
+            ctx.stroke();
+            [lastX, lastY] = [event.offsetX, event.offsetY];
+            
+            path.push([lastX, lastY]); // 儲存軌跡
+            currentStroke.push([lastX, lastY]); // 將點加入當前筆畫
+        }
+        function drawTouch(event) {
+            event.preventDefault();
+            if (!drawing) return;
+            const touch = event.touches[0];
+            const rect = canvas.getBoundingClientRect();
+            const x = Math.trunc(touch.clientX - rect.left);
+            const y = Math.trunc(touch.clientY - rect.top);
+            
+            ctx.beginPath();
+            ctx.moveTo(lastX, lastY);
+            ctx.lineTo(x, y);
+            ctx.stroke();
+            [lastX, lastY] = [x, y];
+            
+            path.push([lastX, lastY]); // 儲存軌跡
+            currentStroke.push([lastX, lastY]); // 將點加入當前筆畫
+        }
+
+        function stopDrawing(event) {
+            if (!drawing) return;
+            drawing = false;
+            
+            if (event.type === "touchend") {
+                event.preventDefault();
+                if (event.changedTouches && event.changedTouches.length > 0) {
+                    const touch = event.changedTouches[0];
+                    const rect = canvas.getBoundingClientRect();
+                    lastX = Math.trunc(touch.clientX - rect.left);
+                    lastY = Math.trunc(touch.clientY - rect.top);
+                    path.push([lastX, lastY]); // 儲存軌跡
+                    currentStroke.push([lastX, lastY]); // 將最後一個點加入當前筆畫
+                }
+            } else if (event.type === "mouseup") {
+                lastX = event.offsetX;
+                lastY = event.offsetY;
+                path.push([lastX, lastY]); // 儲存軌跡
+                currentStroke.push([lastX, lastY]); // 將最後一個點加入當前筆畫
+            }
+            paths.push(path); // 將當前筆畫加入總軌跡
+            // 更新點位陣列為當前筆畫（覆蓋之前的記錄）
+            pointsArray = [...currentStroke];
+            if (!clearOnDraw) {
+				sendToPython();
+                path = []; // 清除當前筆畫
+            }
+            toggleClearOnDraw();
+        }
+
+        function clearCanvas() {
+            ctx.fillStyle = "white";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            consoleEl.innerHTML = "";  // 清除 console 畫面
+            btnSend.disabled = false;  // 傳送按鈕致能
+            paths = []; // 清除軌跡
+            path = []; // 清除軌跡
+            currentStroke = []; // 清除當前筆畫
+
+            
+            // 清空 svg
+            while (svg.firstChild) {
+              svg.removeChild(svg.firstChild);
+            }
+            btnDownload.disabled = true;
+            toggleClearOnDraw();
+        }
+
+        // 將 data 顯示於 console 
+        function showConsole(data) {
+          if (data.message && data.message.trim() !== "") {
+            const newText = data.message.replace(/\n/g, "<br>"); // 置換換行符號 \n 為 <br>
+            consoleEl.innerHTML += newText; 
+            consoleEl.scrollTop = consoleEl.scrollHeight; // 讓滾動條保持在最底部
+          }
+        }
+        
+        // 將 beizers 陣列轉換為適合繪製貝茲曲線的格式
+        function showBeizer(beizers) {
+            const points = [];
+            for (let i = 0; i < beizers.length; i += 4) {
+              if (i + 3 < beizers.length) {
+                points.push([
+                  beizers[i],
+                  beizers[i + 1],
+                  beizers[i + 2],
+                  beizers[i + 3]
+                ]);
+              }
+            }
+
+            // 畫在 svg
+            points.forEach(curvePoints => {
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                path.setAttribute('d', `M ${curvePoints[0][0]} ${curvePoints[0][1]} C ${curvePoints[1][0]} ${curvePoints[1][1]} ${curvePoints[2][0]} ${curvePoints[2][1]} ${curvePoints[3][0]} ${curvePoints[3][1]}`);
+                path.setAttribute('stroke', 'red');
+                path.setAttribute('stroke-width', '2'); 
+                path.setAttribute('fill', 'transparent');
+                svg.appendChild(path);
+            });
+            btnDownload.disabled = false;
+        }
+        
+        function updateConsole() {
+            if(consoleCounter > 0) {
+              consoleCounter--;
+              if(consoleCounter == 0) {
+                if(intervalId !== null)
+                  clearInterval(intervalId); // 清除計時器
+              }
+            }
+            fetch('/message') // 訪問 /message 頁面
+              .then(response => response.json())
+                .then(data => {
+                    if (data.message && data.message !="" ) {
+                        consoleCounter = 5;  // 最多再訪問 /message 頁面 5 次(秒)
+                        showConsole(data);
+                    }
+                    // 有圖片時顯示圖片
+                    if (data.imageBase64) {
+                        consoleCounter = 5;  // 最多再訪問 /message 頁面 5 次(秒)
+                        let overlayImage = new Image();
+                        overlayImage.src = "data:image/png;base64," + data.imageBase64;
+                        overlayImage.onload = function() {
+                            ctx.globalCompositeOperation = "multiply"; // 讓白色變透明
+                            ctx.drawImage(overlayImage, 0, 0, canvas.width, canvas.height);
+                            ctx.globalCompositeOperation = "source-over";
+                        };
+                    }
+                    // 有貝茲資料時畫在 svg 上
+                    if (data.beizers) {
+                        consoleCounter = 5;  // 最多再訪問 /message 頁面 5 次(秒)
+                        showBeizer(data.beizers);
+                    }
+                    console.log("Data sent successfully");
+                    btnSend.disabled = false;
+                })
+                .catch(error => {
+                    console.error("Error fetching message:", error);
+                });
+        }
+        
+        // 移除 svg 最後一個元素並清除對應的線條
+        function undoline() {
+            // 移除 SVG 中的最後一個元素
+            const lastChild = svg.lastChild;
+            if (lastChild) {
+                svg.removeChild(lastChild);
+            }
+            
+            // 檢查是否有路徑可以撤銷
+            if (paths.length > 0) {
+                // 保存當前畫布狀態
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                
+                // 清除整個畫布
+                ctx.fillStyle = "white";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // 移除最後一條路徑
+                paths.pop();
+                
+                // 重新繪製所有保留的路徑
+                for (let pathIndex = 0; pathIndex < paths.length; pathIndex++) {
+                    const currentPath = paths[pathIndex];
+                    
+                    // 跳過路徑的第一個元素，因為它是畫布尺寸
+                    for (let i = 2; i < currentPath.length; i++) {
+                        if (i >= 2) {
+                            ctx.beginPath();
+                            ctx.moveTo(currentPath[i-1][0], currentPath[i-1][1]);
+                            ctx.lineTo(currentPath[i][0], currentPath[i][1]);
+                            ctx.stroke();
+                        }
+                    }
+                }
+                
+                // 清空當前筆畫
+                currentStroke = [];
+                
+                // 更新按鈕狀態
+                if (paths.length === 0) {
+                    btnDownload.disabled = true;
+                    btnSend.disabled = true;
+                    btnUndo.disabled = true; // 明確禁用撤銷按鈕
+                }
+            }
+        }
+        
+        function sendToPython() {
+        if(paths.length > 0) {
+            if(intervalId !== null)
+                clearInterval(intervalId);
+                
+            intervalId = setInterval(updateConsole, 1000);
+            consoleCounter = 30;
+            
+            btnSend.disabled = true;
+            
+            console.log("準備發送的資料:", paths); // 新增此行調試
+            
+            let uploadUrl = "/upload?testmode=" + clearOnDraw;
+            fetch(uploadUrl, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    width: canvas.width,
+                    height: canvas.height,
+                    points: paths
+                })
+            }).then(response => {
+                console.log("收到回應", response); // 新增此行
+                return response.json();
+            })
+            .then(data => {
+                //刪除繪圖軌跡
+                paths = []
+                console.log("解析後的資料", data); // 新增此行
+                // 顯示 /upload 回應文字訊息
+                if (data.message) {
+                    showConsole(data);
+                }
+                
+                btnSend.disabled = false;
+            })
+            .catch(error => {
+                console.error("發生錯誤:", error);
+                btnSend.disabled = false; // 出錯時也要啟用按鈕
+            });
+        }
+    }
+        
+        // 是否採用 單筆繪圖模式 的按鈕顯示切換
+        function toggleClearOnDraw() {
+            clearOnDraw = document.getElementById("clearOnDraw").checked;
+            if(clearOnDraw)
+            {
+              btnDownload.style.display = "none";
+              btnUndo.style.display = "none";
+              //btnSend.style.display = "block";
+            }
+            else
+            {
+              btnDownload.style.display = "block";
+              btnUndo.style.display = "block";
+              //btnSend.style.display = "none";
+              //console.log("paths.length: ", paths.length);
+              if(paths.length > 0) {
+                btnSend.disabled = false; // 使能發送按鈕
+                btnDownload.disabled = false; // 使能下載按鈕
+                btnUndo.disabled = false; // 使能撤銷按鈕
+                } else {
+                btnSend.disabled = true; // 禁用發送按鈕
+                btnDownload.disabled = true; // 禁用下載按鈕
+                btnUndo.disabled = true; // 禁用撤銷按鈕
+                }
+            }
+        }
+    </script>
+</head>
+<body>
+    <div id="main-container">
+        <div class="header">
+            <h1>貝茲擬和</h1>
+        </div>
+        <div id="container">
+            <canvas id="canvas"></canvas>
+            <svg id="svg"></svg>
+        </div>
+        <div class="button-container">
+            <label>
+            <input type="checkbox" id="clearOnDraw" onchange="toggleClearOnDraw()" checked> 單筆繪圖模式
+            </label>
+            <button onclick="clearCanvas()">清除</button>
+            <button id="btnsend" onclick="sendToPython()">發送到 Python</button>
+            <button id="downloadButton" disabled>下載 SVG</button>
+            <button id="undo" onclick="undoline()">undo</button>
+        </div>
+    </div>
+
+    <div id="console"></div>
+	<div id="version" style="position: fixed; bottom: 0; left: 0; font-size: 12px; margin: 5px;"></div>
+    
+</body>
+</html>
