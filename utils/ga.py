@@ -10,7 +10,6 @@ from .server_tools import *
 
 
 #genetic algorithm
-
 def genetic_algorithm(target_curve, p1, p4, width, height, pop_size=50, generations=500):
     """
     使用遺傳演算法進行內部雙控制點擬合
@@ -39,7 +38,6 @@ def genetic_algorithm(target_curve, p1, p4, width, height, pop_size=50, generati
         dist1, _ = tree1.query(set2)
         dist2, _ = tree2.query(set1)
         return max(np.max(dist1), np.max(dist2))
-
     def average_distance(set1, set2):
         """
         計算兩個點集之間平均距離
@@ -53,18 +51,17 @@ def genetic_algorithm(target_curve, p1, p4, width, height, pop_size=50, generati
         dist1, _ = tree1.query(set2)
         dist2, _ = tree2.query(set1)
         return (np.mean(dist1) + np.mean(dist2)) / 2
-
     def fitness(individual, target, width, height, alpha=0.9, beta=0.1):
         """
         適應度函數，結合 Hausdorff 距離和平均距離
         Args:
-            individual
+            individual      (list of float): 擬合曲線控制點 Datatye: [x2, y2, x3, y3]
             target_curve    (list of tuple): 目標擬合曲線 Datatye: [(x1,y1), (x2,y2), ... (xn,yn)]
             width, height             (int): 擬合畫布最大長寬
             alpha                     (int): 豪斯多夫距離權重
             beta                      (int): 平均距離權重
         Returns:
-            normalized                (float): 0~1 評分結果
+            normalized              (float): 評分結果 值介於 0~1 
         Waring:
             normalized 已進行標準化(0~100)
         """
@@ -88,8 +85,14 @@ def genetic_algorithm(target_curve, p1, p4, width, height, pop_size=50, generati
         #使用不同的標準化參數
         normalized = np.exp(-2 * combined_distance / max_possible_dist)
         return normalized * 100
-    # 種群初始化 (允許在更大範圍內隨機生成控制點)
     def initialize_population(size):
+        """
+        種群初始化，初始化控制點
+        Args:       
+            size                      (int): 種群數量
+        Returns:
+            population      (list of float): Datatye: [x2, y2, x3, y3]
+        """
         population = []
         for _ in range(size):
             # 在p1和p4之間隨機初始化控制點
@@ -99,8 +102,15 @@ def genetic_algorithm(target_curve, p1, p4, width, height, pop_size=50, generati
             y3 = random.uniform(min(p1[1], p4[1]), max(p1[1], p4[1]))
             population.append([x2, y2, x3, y3])
         return population    
-    # 改良版選擇函數
     def selection(population, scores):
+        """
+        選擇函數，分數越高越容易被選到
+        Args:
+            population      (list of tuple): 種群集 Datatye: [(x1,y1), (x2,y2), ... (xn,yn)]
+            scores          (list of float): 種群集分數 
+        Returns:
+            list of tuple, list of tuple: 返回選擇的個體
+        """
         # 處理全零適應度情況
         if sum(scores) <= 0:
             return [random.choice(population), random.choice(population)]
@@ -116,9 +126,15 @@ def genetic_algorithm(target_curve, p1, p4, width, height, pop_size=50, generati
             replace=False
         )
         return [population[i] for i in indices]
-    
-    # 增強型交叉操作
     def crossover(parent1, parent2, crossover_rate=0.75):
+        """
+        交叉操作，則二父輩進行交配
+        Args:
+            parent1, parent2    (list of tuple): 父輩個體 Datatye: [x2, y2, x3, y3]
+            crossover_rate      (float): 交叉變異度
+        Returns:
+            list of tuple, list of tuple: 返回兩個下一代個體
+        """
         if random.random() > crossover_rate:
             return parent1.copy(), parent2.copy()
         
@@ -133,9 +149,15 @@ def genetic_algorithm(target_curve, p1, p4, width, height, pop_size=50, generati
         
         # 轉回列表
         return child1.tolist(), child2.tolist()
-    
-    # 智慧型變異操作 - 允許更大範圍的探索
     def mutate(individual, mutation_rate=0.5):
+        """
+        單一個體進行突變
+        Args:
+            individual          (list of tuple): 個體 Datatye: [x2, y2, x3, y3]
+            mutation_rate       (list of float): 變異率
+        Returns:
+            result              (list of tuple): 變異後個體 Datatye: [x2, y2, x3, y3]
+        """
         result = individual.copy()
 
         for i in range(len(result)):
