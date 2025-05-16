@@ -52,12 +52,37 @@ if __name__ == "__main__":
                 curvature_threshold=curvature_threshold,
                 debug=debug
             )
+            path = [fixcontour[i] for i in range(custom_idx[0], custom_idx[-1])]
+
+            result = []  # 這裡應該儲存所有路徑的控制點
+
+            for i in range(len(custom_idx)-1):
+                target_curve = []
+                # 收集從 jointsA[h][i] 到 jointsA[h][i+1] 之間的所有點位
+                custom_print("!",custom_idx[i], custom_idx[i+1])  
+                # 收集該範圍內的所有點
+                for j in range(custom_idx[i], custom_idx[i+1]+1):
+                    point = path[j]
+                    
+                    # 確保點位是整數
+                    target_curve.append((int(point[0]), int(point[1])))
+                
+                # 輸出首尾點以便偵錯
+                custom_print(f"Line {i} from {target_curve[0]} to {target_curve[-1]}")
+                
+                pre = genetic_algorithm(target_curve, target_curve[0], target_curve[-1], width, height)
+                result.append(pre)
+
+                # 生成貝茲曲線並繪製
+                curve_points = bezier_curve_calculate(pre)
+                predict = draw_curve_on_image(predict, curve_points, 3)
+                final = stack_image(final, predict)
+
+            """
             print("自訂演算法簡化後的點數:", len(custom_points))
             
             # 繪製原始輪廓
             cv2.drawContours(vis_img, [contour], -1, (0, 255, 0), 1)
-            
-            """
             # 繪製RDP簡化後的點（紅色）
             for point in rdp_points:
                 cv2.circle(vis_img, (point[0], point[1]), 3, (0, 0, 255), -1)
@@ -67,8 +92,6 @@ if __name__ == "__main__":
                 cv2.circle(vis_img, (int(point[0]), int(point[1])), 5, (255, 0, 0), -1)
             """
             
-    
-        
         # 顯示結果
         showimg("輪廓簡化結果", vis_img, 1)
         
