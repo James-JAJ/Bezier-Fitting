@@ -13,7 +13,7 @@ __all__ = [
     "bezier_curve_calculate",
     "draw_curve_on_image",
     "genetic_algorithm",
-    "inputimg",
+    "inputimgcolortobinary",
     "showimg",
     "save_image",
     "encode_image_to_base64",

@@ -93,3 +93,26 @@ def interpolate_points(points, step=1):
             new_points.append((new_x, new_y))
     
     return new_points
+def make_circular_index(idx, length):
+    """ 環狀索引處理 """
+    return idx % length
+
+def remove_consecutive_duplicates(array):
+    """ 移除連續重複項 """
+    if len(array) < 2:
+        return array
+    result = [array[0]]
+    for i in range(1, len(array)):
+        if not np.array_equal(array[i], array[i-1]):
+            result.append(array[i])
+    # 若首尾相同，也移除尾
+    if len(result) > 1 and np.array_equal(result[0], result[-1]):
+        result.pop()
+    return result
+def shrink_contours(contours, shrink_factor):
+    """將輪廓座標縮小"""
+    shrunk = []
+    for contour in contours:
+        new_contour = np.array(contour * shrink_factor, dtype=np.int32)
+        shrunk.append(new_contour)
+    return shrunk

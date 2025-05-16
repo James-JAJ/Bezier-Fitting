@@ -253,3 +253,276 @@ def svcfp(paths, min_radius=10, max_radius=50, curvature_threshold=27, rdp_epsil
 
     # 返回關鍵點座標和原始路徑中的關鍵點索引
     return key_points, final_idx
+
+def filter_key_points(key_points, indices, max_values, min_distance=10, min_value_ratio=0.5):
+    """過濾過近的關鍵點"""
+    if len(key_points) <= 2:  # 保留起點和終點
+        return key_points, indices
+    
+    # 起點和終點一定保留
+    filtered_points = [key_points[0]]
+    filtered_indices = [indices[0]]
+    
+    # 處理中間點，只過濾過近的點
+    for i in range(1, len(key_points) - 1):
+        # 檢查與前一個保留點的距離
+        dist_to_prev = distance(key_points[i], filtered_points[-1])
+        
+        # 如果距離太近，則跳過
+        if dist_to_prev < min_distance:
+            continue
+        
+        filtered_points.append(key_points[i])
+        filtered_indices.append(indices[i])
+    
+    # 添加終點（如果不是起點）
+    if len(key_points) > 1 and not np.array_equal(key_points[0], key_points[-1]):
+        filtered_points.append(key_points[-1])
+        filtered_indices.append(indices[-1])
+    
+    return filtered_points, filtered_indices
+
+def calculate_cross_product_direction_change(p1, p2, p3):
+    """
+    判斷三個點形成的兩個向量之間的外積方向是否改變
+    比較 v1 × v2 和 v2 × v3 的符號
+    
+    參數:
+    p1, p2, p3: 三個連續點
+    
+    返回:
+    1: 如果外積方向改變（向左轉或向右轉）
+    0: 如果外積為零（點共線）或方向不變
+    """
+    # 計算向量
+    v1 = p2 - p1
+    v2 = p3 - p2
+    
+    # 計算外積（在2D平面上，外積是一個標量）
+    cross_product = v1[0] * v2[1] - v1[1] * v2[0]
+    
+    # 如果外積為零，則返回0（表示共線）
+    if abs(cross_product) < 1e-10:
+        return 0
+    
+    # 判斷外積的符號
+    # 如果為正，表示向量v1到v2是逆時針旋轉
+    # 如果為負，表示向量v1到v2是順時針旋轉
+    # 這裡我們只返回1，因為有轉向
+    return 1
+
+def calculate_angle_change(p1, p2, p3):
+    """計算三點間的夾角（改進版）"""
+    if np.array_equal(p1, p2) or np.array_equal(p2, p3):
+        return 0
+    
+    v1 = p2 - p1
+    v2 = p3 - p2
+    
+    # 計算單位向量
+    v1_norm = np.linalg.norm(v1)
+    v2_norm = np.linalg.norm(v2)
+    
+    if v1_norm == 0 or v2_norm == 0:
+        return 0
+    
+    v1_unit = v1 / v1_norm
+    v2_unit = v2 / v2_norm
+    
+    # 計算夾角的餘弦值
+    dot_product = np.dot(v1_unit, v2_unit)
+    # 確保在有效範圍 [-1, 1]
+    dot_product = max(-1.0, min(1.0, dot_product))
+    
+    # 計算角度（弧度）
+    angle_rad = np.arccos(dot_product)
+    # 轉換為角度
+    angle_deg = np.degrees(angle_rad)
+    
+    # 返回角度，越小代表轉角越大（余弦值越小）
+    return angle_deg
+
+def svcfp_queue(paths, simplified_paths, min_radius=10, max_radius=50, curvature_threshold=27, debug=False):
+    """
+    改進版路徑簡化和關鍵點提取演算法，解決偽關鍵點問題，增強尖銳角點檢測
+    
+    步驟：
+    1. 使用 rdp 演算法簡化整個路徑
+    2. 將簡化後的點映射回原始路徑的索引
+    3. 計算每個點的曲率特徵值和角度變化
+    4. 使用多種過濾方法去除偽關鍵點
+    5. 增加直接針對尖銳角點的檢測
+    6. 確保起點和終點被包含
+    7. 最後進行密度過濾，消除過近的關鍵點
+    
+    參數:
+        paths: 原始路徑點列表
+        simplified_paths: 已簡化的路徑點列表
+        min_radius: 搜索範圍的最小格數
+        max_radius: 搜索範圍的最大格數
+        curvature_threshold: 判斷關鍵點的閾值
+        debug: 是否打印詳細除錯信息
+    
+    返回:
+        關鍵點座標列表 [[x1, y1], [x2, y2], ...]
+        關鍵點在原始路徑中的索引列表
+    """
+    paths = np.array(paths)
+    simplified_paths = np.array(simplified_paths)
+
+    paths = remove_consecutive_duplicates(paths)  # 移除首尾或相鄰重複點
+    
+    # 自動依據長度調整搜尋格數
+    length = len(paths)
+    if length <= 200:
+        min_radius = max(3, int(min_radius * (length/200)))
+        max_radius = max(10, int(max_radius * (length/200)))
+    
+    # 將簡化後的點映射回原始路徑的索引
+    # 確保original_indices是整數列表，而不是點的列表
+    if isinstance(simplified_paths[0], np.ndarray) or isinstance(simplified_paths[0], list):
+        # 如果simplified_paths是點的列表，需要找到對應在paths中的索引
+        original_indices = []
+        for point in simplified_paths:
+            # 尋找與simplified_paths中點最接近的點在paths中的索引
+            distances = [distance(point, p) for p in paths]
+            original_indices.append(np.argmin(distances))
+    else:
+        # 如果simplified_paths已經是索引列表，直接使用
+        original_indices = simplified_paths.tolist() if isinstance(simplified_paths, np.ndarray) else simplified_paths
+    
+    # 計算各點的標準差、極值數據和角度變化
+    stdlist = []
+    max_values = []
+    angle = []
+    all_feature_values = []  # 存儲所有點的特徵值，用於可視化
+    
+    # 為了計算角度變化，需要在簡化路徑上有三個連續點
+    for i in range(len(original_indices)):
+        # 獲取簡化後路徑中的當前點索引
+        original_idx = original_indices[i]
+        
+        # 計算角度變化（如果有前後點）
+        angle_change = 0
+        if i > 0 and i < len(original_indices) - 1:
+            prev_idx = original_indices[i-1]
+            next_idx = original_indices[i+1]
+            angle_change = calculate_angle_change(paths[prev_idx], paths[original_idx], paths[next_idx])
+            angle.append(angle_change)
+        else:
+            angle.append(0)
+        
+        std_values = []
+        max_distances = []
+        
+        # 修改為使用固定格數而非距離半徑
+        for step_size in range(min_radius, max_radius):
+            temp = []
+            # 加入當前點
+            temp.append(paths[original_idx])
+            
+            # 向右走step_size格
+            for k in range(1, step_size + 1):
+                right_idx = make_circular_index(original_idx + k, length)
+                temp.append(paths[right_idx])
+            
+            # 向左走step_size格
+            for k in range(1, step_size + 1):
+                left_idx = make_circular_index(original_idx - k, length)
+                temp.append(paths[left_idx])
+
+            if len(temp) < 3:
+                continue
+
+            temp = np.array(temp)
+            std_value = np.std(temp, axis=0)
+            std_values.append(np.mean(std_value))
+
+            avg_coords = np.mean(temp, axis=0)
+            max_dist = np.max([distance(avg_coords, p) for p in temp])
+            max_distances.append(max_dist)
+
+        if len(std_values) > 0 and len(max_distances) > 0:
+            # 取標準差和最大距離的均值
+            mean_std = np.mean(std_values)
+            mean_max_dist = np.mean(max_distances)
+            
+            # 使用原始的權重比例
+            angle_weight = 0.4
+            std_weight = 0.3
+            dist_weight = 0.7
+            
+            # 使用角度變化值直接作為加權參數（越大越尖銳）
+            angle_factor = 1.0 + (angle_change / 180.0)  # 將角度映射到[1, 2]範圍
+            
+            combined_value = (
+                std_weight * mean_std + 
+                dist_weight * mean_max_dist + 
+                angle_weight * angle_change
+            ) * angle_factor*10/14
+            
+            stdlist.append(mean_std)
+            max_values.append(combined_value)
+            
+            if debug:
+                print(f"點 {i} (原始索引 {original_idx}): 標準差={mean_std:.2f}, 最大距離={mean_max_dist:.2f}, " +
+                      f"角度變化={angle_change:.2f}, 加權值={combined_value:.2f}")
+        else:
+            # 處理找不到足夠點的情況
+            stdlist.append(0)
+            max_values.append(0)
+            if debug:
+                print(f"點 {i} (原始索引 {original_idx}): 沒有足夠的點進行計算")
+        
+        # 存儲所有點的特徵值，包括索引和位置信息
+        all_feature_values.append({
+            'index': i,
+            'original_index': original_idx,
+            'position': paths[original_idx].tolist() if isinstance(paths[original_idx], np.ndarray) else paths[original_idx],
+            'value': max_values[-1] if max_values else 0,
+            'angle': angle[-1] if angle else 0,
+        })
+    
+    # 尋找加權值超過閾值的點作為候選關鍵點
+    candidate_breakpoints = []
+    for i in range(len(max_values)):
+        if max_values[i] > curvature_threshold:
+            candidate_breakpoints.append(i)
+            if debug:
+                print(f"候選點 {i} (原始索引 {original_indices[i]}): 加權值={max_values[i]:.2f} > 閾值={curvature_threshold}")
+
+    # 確保包含起點和終點
+    if len(simplified_paths) > 0:
+        if 0 not in candidate_breakpoints:
+            candidate_breakpoints.insert(0, 0)
+            if debug:
+                print("添加起點 0 作為關鍵點")
+        if len(simplified_paths) - 1 not in candidate_breakpoints:
+            candidate_breakpoints.append(len(simplified_paths) - 1)
+            if debug:
+                print(f"添加終點 {len(simplified_paths) - 1} 作為關鍵點")
+    
+    # 將候選關鍵點從簡化路徑轉換回原始路徑
+    final_idx = [original_indices[bp] for bp in candidate_breakpoints]
+    
+    # 排序索引以保持有序
+    final_idx = sorted(set(final_idx))
+    
+    # 提取關鍵點的座標（從原始路徑中取出）
+    key_points = [paths[idx].tolist() for idx in final_idx]
+    
+    # 過濾過近的關鍵點
+    filtered_key_points, filtered_idx = filter_key_points(
+        key_points, 
+        final_idx, 
+        [],  # 不使用max_values進行過濾
+        min_distance=20  # 最小距離閾值
+    )
+
+    if debug:
+        print(f"找到 {len(key_points)} 個關鍵點，過濾後剩餘 {len(filtered_key_points)} 個")
+        print(f"原始路徑中的關鍵點索引: {filtered_idx}")
+        print(f"關鍵點座標: {filtered_key_points}")
+
+    # 返回過濾後的關鍵點座標和索引
+    return filtered_key_points, filtered_idx
