@@ -17,7 +17,6 @@ def bezier_curve_calculate(points, num_of_points=50):
         y = float((1 - t)**3 * points[0][1] + 3 * (1 - t)**2 * t * points[1][1] + 3 * (1 - t) * t**2 * points[2][1] + t**3 * points[3][1])
         curve_points.append((int(x), int(y)))
     return curve_points
-#draw_curve_on_image:在圖片上畫出貝茲曲線
 def draw_curve_on_image(img,curve_points,width):
     """
     在圖片上畫出貝茲曲線

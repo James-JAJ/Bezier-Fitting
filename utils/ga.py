@@ -10,13 +10,30 @@ from .server_tools import *
 
 
 #genetic algorithm
-#genetic_algorithm:使用遺傳演算法進行擬合
-def genetic_algorithm(target_curve, p1, p4, width, height, pop_size=50, generations=500):
 
-    
-    # 豪斯多夫距離計算
+def genetic_algorithm(target_curve, p1, p4, width, height, pop_size=50, generations=500):
+    """
+    使用遺傳演算法進行內部雙控制點擬合
+    Args:
+        target_curve    (list of tuple): 目標擬合曲線 Datatye: [(x1,y1), (x2,y2), ... (xn,yn)]
+        p1, p4                  (tuple): 三次貝茲曲線之首尾座標點
+        width, height             (int): 擬合畫布最大長寬
+        pop_size                  (int): 種群數量
+        generations               (int): 最大遞代次數
+    Returns:
+        location        (list of tuple): 擬合曲線控制點 Datatye: [(x1,y1), (x2,y2), (x3,y3), (x4,y4)]
+    Waring:
+        target_curve 點數集內部座標必須為整數
+        內部設有早停
+    """
     def hausdorff_distance(set1, set2):
-        """計算兩個點集之間的 Hausdorff 距離。"""
+        """
+        豪斯多夫距離計算
+        Args:
+            set1, set2    (list of tuple): 兩比較曲線 Datatye: [(x1,y1), (x2,y2), ... (xn,yn)]
+        Returns:
+            float: 豪斯多夫距離 
+        """
         tree1 = cKDTree(set1)
         tree2 = cKDTree(set2)
         dist1, _ = tree1.query(set2)
@@ -24,7 +41,13 @@ def genetic_algorithm(target_curve, p1, p4, width, height, pop_size=50, generati
         return max(np.max(dist1), np.max(dist2))
 
     def average_distance(set1, set2):
-        """計算兩個點集之間的平均距離。"""
+        """
+        計算兩個點集之間平均距離
+        Args:
+            set1, set2    (list of tuple): 兩比較曲線 Datatye: [(x1,y1), (x2,y2), ... (xn,yn)]
+        Returns:
+            float: 平均距離
+        """
         tree1 = cKDTree(set1)
         tree2 = cKDTree(set2)
         dist1, _ = tree1.query(set2)
@@ -32,7 +55,19 @@ def genetic_algorithm(target_curve, p1, p4, width, height, pop_size=50, generati
         return (np.mean(dist1) + np.mean(dist2)) / 2
 
     def fitness(individual, target, width, height, alpha=0.9, beta=0.1):
-        """適應度函數，結合 Hausdorff 距離和平均距離。"""
+        """
+        適應度函數，結合 Hausdorff 距離和平均距離
+        Args:
+            individual
+            target_curve    (list of tuple): 目標擬合曲線 Datatye: [(x1,y1), (x2,y2), ... (xn,yn)]
+            width, height             (int): 擬合畫布最大長寬
+            alpha                     (int): 豪斯多夫距離權重
+            beta                      (int): 平均距離權重
+        Returns:
+            normalized                (float): 0~1 評分結果
+        Waring:
+            normalized 已進行標準化(0~100)
+        """
         p2 = (int(individual[0]), int(individual[1]))
         p3 = (int(individual[2]), int(individual[3]))
         candidate = [p1, p2, p3, p4]
