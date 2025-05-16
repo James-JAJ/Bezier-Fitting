@@ -24,7 +24,7 @@ if __name__ == "__main__":
 
     try:
         # 原圖 灰階圖
-        original_img, gray_img = read_image(image_path)
+        original_img, gray_img = inputimg_colortogray(image_path)
         # 前處理圖片
         preprocessed_img = preprocess_image(gray_img, scale_factor, blur_ksize, threshold_value, ifshow)
         # 得到圖片輪廓
@@ -44,7 +44,7 @@ if __name__ == "__main__":
             print("RDP簡化後的點數:", len(rdp_points))
             
             # 使用改進的自訂演算法進一步簡化
-            custom_points, custom_idx = SVCFP(
+            custom_points, custom_idx = svcfp_queue(
                 fixcontour, 
                 rdp_points,
                 min_radius=min_radius, 
@@ -57,6 +57,7 @@ if __name__ == "__main__":
             # 繪製原始輪廓
             cv2.drawContours(vis_img, [contour], -1, (0, 255, 0), 1)
             
+            """
             # 繪製RDP簡化後的點（紅色）
             for point in rdp_points:
                 cv2.circle(vis_img, (point[0], point[1]), 3, (0, 0, 255), -1)
@@ -64,13 +65,9 @@ if __name__ == "__main__":
             # 繪製自訂演算法簡化後的點（藍色）
             for point in custom_points:
                 cv2.circle(vis_img, (int(point[0]), int(point[1])), 5, (255, 0, 0), -1)
+            """
             
-            # 如果要顯示連線，取消注釋以下代碼
-            # for i in range(1, len(custom_points)):
-            #     cv2.line(vis_img, 
-            #              (int(custom_points[i-1][0]), int(custom_points[i-1][1])),
-            #              (int(custom_points[i][0]), int(custom_points[i][1])),
-            #              (255, 255, 0), 2)
+    
         
         # 顯示結果
         showimg("輪廓簡化結果", vis_img, 1)
