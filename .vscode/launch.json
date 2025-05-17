@@ -1,0 +1,13 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: image_fitting",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/test/image_fitting.py",
+            "cwd": "${workspaceFolder}", // 將工作目錄設定為 Bezier-Fitting
+
+        }
+    ]
+}

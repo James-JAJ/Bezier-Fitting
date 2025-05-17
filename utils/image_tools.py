@@ -34,7 +34,7 @@ def inputimg_colortogray(imgpath):
         raise FileNotFoundError(f"無法讀取圖像: {imgpath}")
     img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY).astype(np.uint8)
     return img, img_gray
-def showimg(img,ifshow=1):
+def showimg(img, name="test", ifshow=1):
     """
     在本地端顯示圖片
     Args:
@@ -42,7 +42,7 @@ def showimg(img,ifshow=1):
         ifshow   (int): 是否顯示圖片
     """
     if ifshow==1:
-        cv2.imshow('Bezier Curve', img)
+        cv2.imshow(name, img)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
 def save_image(image, filename,path,ifserver):

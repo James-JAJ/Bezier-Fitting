@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-import cv2
 import numpy as np
 import sys
 sys.stdout.reconfigure(encoding='utf-8')
-from ..utils import *
+from utils import *
+
 
 # 主程式
 if __name__ == "__main__":

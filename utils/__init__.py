@@ -5,7 +5,6 @@ from .math_tools import *
 from .server_tools import *
 from .svcfp import *
 from .server_tools import *
-# 如果你要直接 import utils 就能用這些工具：
 __all__ = [
     #bezier
     "bezier_curve_calculate",
