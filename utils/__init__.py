@@ -1,6 +1,3 @@
-# utils/__init__.py
-# utils/__init__.py
-
 from .bezier import *
 from .ga import *
 from .image_tools import *
