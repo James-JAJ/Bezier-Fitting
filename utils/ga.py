@@ -10,7 +10,7 @@ from .server_tools import *
 
 
 #genetic algorithm
-def genetic_algorithm(target_curve, p1, p4, width, height, pop_size=50, generations=500):
+def genetic_algorithm(target_curve, p1, p4, width, height, pop_size=50, generations=500,ifserver=1):
     """
     使用遺傳演算法進行內部雙控制點擬合
     Args:
@@ -188,7 +188,7 @@ def genetic_algorithm(target_curve, p1, p4, width, height, pop_size=50, generati
         
         # 每10代輸出準確度
         if (gen+1) % 10 == 0:
-            custom_print(f"Generation {gen+1}: Best Score = {best_score:.2f}")
+            custom_print(ifserver,f"Generation {gen+1}: Best Score = {best_score:.2f}")
             
             # Early stop邏輯 - 如同原本的實現
             if best_score - last_score < 0.01:
@@ -200,7 +200,7 @@ def genetic_algorithm(target_curve, p1, p4, width, height, pop_size=50, generati
             
             # 連續四次沒有明顯改善則提前結束
             if consecutive_no_improvement == 4:
-                custom_print(f"Early stopping at generation {gen+1}: No significant improvement for 40 generations")
+                custom_print(ifserver,f"Early stopping at generation {gen+1}: No significant improvement for 40 generations")
                 break
         
         # 新一代種群

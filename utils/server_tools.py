@@ -9,15 +9,17 @@ def set_console_output_ref(ref):
     global _console_output_ref
     _console_output_ref = ref
 
-def custom_print(*args, **kwargs):
+def custom_print(ifsever=1,*args, **kwargs):
     """自定義的 print 函數，將輸出內容儲存到 console_output 變數中"""
     global _console_output_ref
-    
-    message = " ".join(map(str, args))  # 將所有參數轉換為字串並連接起來
-    print(message)
-    
-    # 確認 _console_output_ref 已設置
-    if _console_output_ref is not None:
-        _console_output_ref[0] += str(message) + "\n"  # 將訊息加入到 console_output 字串中，並加上換行符號
+    if ifsever == 1:
+        message = " ".join(map(str, args))  # 將所有參數轉換為字串並連接起來
+        print(message)
+        
+        # 確認 _console_output_ref 已設置
+        if _console_output_ref is not None:
+            _console_output_ref[0] += str(message) + "\n"  # 將訊息加入到 console_output 字串中，並加上換行符號
+        else:
+            print("警告: console_output 引用尚未設置，請在 app.py 中調用 set_console_output_ref")
     else:
-        print("警告: console_output 引用尚未設置，請在 app.py 中調用 set_console_output_ref")
+        print(message)

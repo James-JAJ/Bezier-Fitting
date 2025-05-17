@@ -3,12 +3,12 @@ import cv2
 import numpy as np
 import sys
 sys.stdout.reconfigure(encoding='utf-8')
-from utils import *
+from ..utils import *
 
 # 主程式
 if __name__ == "__main__":
     # --- 可調參數 ---
-    image_path = 'C.png'
+    image_path = 'A.png'
     scale_factor = 2             # 前處理放大倍數
     final_shrink_factor = 0.5    # 縮小倍數
     blur_ksize = 3               # 模糊核大小  
@@ -50,33 +50,47 @@ if __name__ == "__main__":
                 min_radius=min_radius, 
                 max_radius=max_radius, 
                 curvature_threshold=curvature_threshold,
-                debug=debug
+                debug=debug,
+                ifserver=0
             )
             path = [fixcontour[i] for i in range(custom_idx[0], custom_idx[-1])]
 
-            result = []  # 這裡應該儲存所有路徑的控制點
+                        # 取得該輪廓在 custom_idx 上切割的各段曲線
+            result = []  # 所有段落的控制點
+            final = vis_img.copy()  # 用於儲存繪圖結果
+            width, height = vis_img.shape[1], vis_img.shape[0]
+            predict = np.zeros_like(final)  # 預測圖層
 
-            for i in range(len(custom_idx)-1):
-                target_curve = []
-                # 收集從 jointsA[h][i] 到 jointsA[h][i+1] 之間的所有點位
-                custom_print("!",custom_idx[i], custom_idx[i+1])  
-                # 收集該範圍內的所有點
-                for j in range(custom_idx[i], custom_idx[i+1]+1):
-                    point = path[j]
-                    
-                    # 確保點位是整數
-                    target_curve.append((int(point[0]), int(point[1])))
-                
-                # 輸出首尾點以便偵錯
-                custom_print(f"Line {i} from {target_curve[0]} to {target_curve[-1]}")
-                
-                pre = genetic_algorithm(target_curve, target_curve[0], target_curve[-1], width, height)
-                result.append(pre)
+            for i in range(len(custom_idx) - 1):
+                start = custom_idx[i]
+                end = custom_idx[i + 1]
+                if end <= start:
+                    continue  # 避免無效段
 
-                # 生成貝茲曲線並繪製
-                curve_points = bezier_curve_calculate(pre)
+                # 擷取這段範圍內的點
+                target_curve = path[start:end + 1]
+                target_curve = [(int(p[0]), int(p[1])) for p in target_curve]
+
+                # 除錯輸出
+                custom_print(f"Line {i}: {target_curve[0]} -> {target_curve[-1]}")
+
+                # 使用 genetic_algorithm 擬合控制點
+                control_points = genetic_algorithm(
+                    target_curve, 
+                    target_curve[0], 
+                    target_curve[-1], 
+                    width, height,
+                    ifserver=0
+                )
+                result.append(control_points)
+
+                # 計算貝茲曲線座標並繪製到預測圖上
+                curve_points = bezier_curve_calculate(control_points)
                 predict = draw_curve_on_image(predict, curve_points, 3)
-                final = stack_image(final, predict)
+
+            # 最後將預測圖層疊加到原圖上顯示
+            final = stack_image(final, predict)
+            showimg("曲線擬合結果", final, 1)
 
             """
             print("自訂演算法簡化後的點數:", len(custom_points))

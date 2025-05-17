@@ -45,7 +45,7 @@ def showimg(img,ifshow=1):
         cv2.imshow('Bezier Curve', img)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
-def save_image(image, filename,path):
+def save_image(image, filename,path,ifserver):
     """
     儲存圖片(未修改路徑)
     Args:
@@ -53,7 +53,7 @@ def save_image(image, filename,path):
         filename    (str): 檔名
     """
     cv2.imwrite(path+"/"+filename, image)
-    custom_print(f"Image saved: {path}")
+    custom_print(ifserver,f"Image saved: {path}")
 def encode_image_to_base64(image):
     """
     encode_image_to_base64:

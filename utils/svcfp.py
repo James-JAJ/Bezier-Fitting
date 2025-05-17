@@ -44,7 +44,7 @@ def rdp(points, epsilon):
     else:
         return [start.tolist(), end.tolist()]
 #path_simplify_and_extract:自創路徑演算法提取特徵點
-def svcfp(paths, min_radius=10, max_radius=50, curvature_threshold=27, rdp_epsilon=20):
+def svcfp(paths, min_radius=10, max_radius=50, curvature_threshold=27, rdp_epsilon=20,ifserver=1):
     """
     改進版路徑簡化和關鍵點提取演算法，解決偽關鍵點問題
     
@@ -71,13 +71,13 @@ def svcfp(paths, min_radius=10, max_radius=50, curvature_threshold=27, rdp_epsil
     
     # 首先使用 rdp 簡化整個路徑
     simplified_paths = rdp(paths, rdp_epsilon)
-    custom_print(f"rdp 簡化後的點數: {len(simplified_paths)}")
+    custom_print(ifserver,f"rdp 簡化後的點數: {len(simplified_paths)}")
     
     # 將簡化後的點映射回原始路徑的索引
     original_indices = []
     i = 0
     check_paths_idx = 0
-    custom_print(simplified_paths[i])
+    custom_print(ifserver,simplified_paths[i])
     
     while check_paths_idx < len(paths) and i < len(simplified_paths):
         if np.array_equal(paths[check_paths_idx],simplified_paths[i]):
@@ -87,8 +87,8 @@ def svcfp(paths, min_radius=10, max_radius=50, curvature_threshold=27, rdp_epsil
 
     # 處理 simplified_paths 中剩餘的元素 (如果 paths 提早結束)
     if i < len(simplified_paths):
-        custom_print(f"警告: simplified_paths 中剩餘的元素無法在 paths 中按順序找到。")
-    custom_print(f"簡化點對應的原始索引: {original_indices}")
+        custom_print(ifserver,f"警告: simplified_paths 中剩餘的元素無法在 paths 中按順序找到。")
+    custom_print(ifserver,f"簡化點對應的原始索引: {original_indices}")
     
     # 計算各點的標準差、極值數據和角度變化
     stdlist = []
@@ -110,7 +110,7 @@ def svcfp(paths, min_radius=10, max_radius=50, curvature_threshold=27, rdp_epsil
         
         # 計算夾角的餘弦值
         angle = np.dot(v1_norm,v2_norm)
-        custom_print(angle)
+        custom_print(ifserver,angle)
         # 轉換為角度
         
         return angle    
@@ -198,12 +198,12 @@ def svcfp(paths, min_radius=10, max_radius=50, curvature_threshold=27, rdp_epsil
             stdlist.append(mean_std)
             max_values.append(combined_value)
             
-            #custom_print(f"點 {i} (原始索引 {original_idx}): 標準差={mean_std:.2f}, 最大距離={mean_max_dist:.2f}, 角度變化={angle_change:.2f}, 加權值={combined_value:.2f}")
+            #custom_print(ifserver,f"點 {i} (原始索引 {original_idx}): 標準差={mean_std:.2f}, 最大距離={mean_max_dist:.2f}, 角度變化={angle_change:.2f}, 加權值={combined_value:.2f}")
         else:
             # 處理找不到足夠點的情況
             stdlist.append(0)
             max_values.append(0)
-            #custom_print(f"點 {i} (原始索引 {original_idx}): 沒有足夠的點進行計算")
+            #custom_print(ifserver,f"點 {i} (原始索引 {original_idx}): 沒有足夠的點進行計算")
         
         # 存儲所有點的特徵值，包括索引和位置信息
         all_feature_values.append({
@@ -219,7 +219,7 @@ def svcfp(paths, min_radius=10, max_radius=50, curvature_threshold=27, rdp_epsil
     for i in range(len(max_values)):
         if max_values[i] > curvature_threshold:
             candidate_breakpoints.append(i)
-            #custom_print(f"候選點 {i} (原始索引 {original_indices[i]}): 加權值={max_values[i]:.2f} > 閾值={curvature_threshold}")
+            #custom_print(ifserver,f"候選點 {i} (原始索引 {original_indices[i]}): 加權值={max_values[i]:.2f} > 閾值={curvature_threshold}")
 
     
     
@@ -227,10 +227,10 @@ def svcfp(paths, min_radius=10, max_radius=50, curvature_threshold=27, rdp_epsil
     if len(simplified_paths) > 0:
         if 0 not in candidate_breakpoints:
             candidate_breakpoints.insert(0, 0)
-            #custom_print("添加起點 0 作為關鍵點")
+            #custom_print(ifserver,"添加起點 0 作為關鍵點")
         if len(simplified_paths) - 1 not in candidate_breakpoints:
             candidate_breakpoints.append(len(simplified_paths) - 1)
-            #custom_print(f"添加終點 {len(simplified_paths) - 1} 作為關鍵點")
+            #custom_print(ifserver,f"添加終點 {len(simplified_paths) - 1} 作為關鍵點")
     #candidate_breakpoints=rdp(candidate_breakpoints,20)
     final_idx = []
     i = 0
@@ -247,9 +247,9 @@ def svcfp(paths, min_radius=10, max_radius=50, curvature_threshold=27, rdp_epsil
     # 提取關鍵點的座標（從原始路徑中取出）
     key_points = [paths[idx] for idx in final_idx]
 
-    custom_print(f"找到 {len(key_points)} 個關鍵點")
-    custom_print(f"原始路徑中的關鍵點索引: {final_idx}")
-    custom_print(f"關鍵點座標: {key_points}")
+    custom_print(ifserver,f"找到 {len(key_points)} 個關鍵點")
+    custom_print(ifserver,f"原始路徑中的關鍵點索引: {final_idx}")
+    custom_print(ifserver,f"關鍵點座標: {key_points}")
 
     # 返回關鍵點座標和原始路徑中的關鍵點索引
     return key_points, final_idx
@@ -342,7 +342,7 @@ def calculate_angle_change(p1, p2, p3):
     # 返回角度，越小代表轉角越大（余弦值越小）
     return angle_deg
 
-def svcfp_queue(paths, simplified_paths, min_radius=10, max_radius=50, curvature_threshold=27, debug=False):
+def svcfp_queue(paths, simplified_paths, min_radius=10, max_radius=50, curvature_threshold=27, debug=False,ifserver=1):
     """
     改進版路徑簡化和關鍵點提取演算法，解決偽關鍵點問題，增強尖銳角點檢測
     
@@ -520,9 +520,9 @@ def svcfp_queue(paths, simplified_paths, min_radius=10, max_radius=50, curvature
     )
 
     if debug:
-        print(f"找到 {len(key_points)} 個關鍵點，過濾後剩餘 {len(filtered_key_points)} 個")
-        print(f"原始路徑中的關鍵點索引: {filtered_idx}")
-        print(f"關鍵點座標: {filtered_key_points}")
+        custom_print(ifserver,f"找到 {len(key_points)} 個關鍵點，過濾後剩餘 {len(filtered_key_points)} 個")
+        custom_print(ifserver,f"原始路徑中的關鍵點索引: {filtered_idx}")
+        custom_print(ifserver,f"關鍵點座標: {filtered_key_points}")
 
     # 返回過濾後的關鍵點座標和索引
     return filtered_key_points, filtered_idx
