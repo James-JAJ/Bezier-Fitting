@@ -30,5 +30,5 @@ def draw_curve_on_image(img,curve_points,width):
         curve_points 點數集內部座標必須為整數
     """
     for m in range(len(curve_points) - 1):
-        curve = cv2.line(img, curve_points[m], curve_points[m+1], (255, 255, 255), width)
+        curve = cv2.line(img, curve_points[m], curve_points[m+1], (0, 255, 0), width)
     return img

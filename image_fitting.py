@@ -86,11 +86,11 @@ if __name__ == "__main__":
 
                 # 計算貝茲曲線座標並繪製到預測圖上
                 curve_points = bezier_curve_calculate(control_points)
-                predict = draw_curve_on_image(predict, curve_points, 3)
+                predict = draw_curve_on_image(predict, curve_points, 2)
 
             # 最後將預測圖層疊加到原圖上顯示
             final = stack_image(final, predict)
-            showimg("曲線擬合結果", final, 1)
+            showimg( final,"曲線擬合結果", 1)
 
             """
             print("自訂演算法簡化後的點數:", len(custom_points))
@@ -107,7 +107,7 @@ if __name__ == "__main__":
             """
             
         # 顯示結果
-        showimg("輪廓簡化結果", vis_img, 1)
+        showimg(vis_img, "輪廓簡化結果", 1)
         
     except Exception as e:
         print(f"發生錯誤: {e}")

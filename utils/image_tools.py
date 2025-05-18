@@ -94,13 +94,13 @@ def preprocess_image(img_gray, scale_factor=2, blur_ksize=3, threshold_value=200
     """
     height, width = img_gray.shape
     resized = cv2.resize(img_gray, (width * scale_factor, height * scale_factor), interpolation=cv2.INTER_CUBIC)
-    showimg("resized", resized, ifshow)
+    showimg( resized,"resized", ifshow)
 
     blurred = cv2.GaussianBlur(resized, (blur_ksize, blur_ksize), 0)
-    showimg("blurred", blurred, ifshow)
+    showimg( blurred,"blurred", ifshow)
 
     _, binary = cv2.threshold(blurred, threshold_value, 255, cv2.THRESH_BINARY_INV)
-    showimg("binary", binary, ifshow)
+    showimg( binary, "binary",ifshow)
 
     return binary
 def getContours(binary_img, ifshow=0):
@@ -113,4 +113,5 @@ def getContours(binary_img, ifshow=0):
     contours, hierarchy = cv2.findContours(binary_img, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
     vis_img = cv2.cvtColor(binary_img.copy(), cv2.COLOR_GRAY2BGR)
     cv2.drawContours(vis_img, contours, -1, (0, 255, 0), 1)
-    showimg("contours", vis_img, ifshow)
+    showimg(vis_img,"contours", ifshow)
+    return contours
