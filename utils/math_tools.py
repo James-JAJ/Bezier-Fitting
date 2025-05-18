@@ -116,3 +116,15 @@ def shrink_contours(contours, shrink_factor):
         new_contour = np.array(contour * shrink_factor, dtype=np.int32)
         shrunk.append(new_contour)
     return shrunk
+def find_simplified_indices(paths, simplified_points):
+    indices = []
+    for sp in simplified_points:
+        found = False
+        for i, p in enumerate(paths):
+            if np.array_equal(p, sp):
+                indices.append(i)
+                found = True
+                break
+        if not found:
+            raise ValueError(f"Point {sp} not found in paths.")
+    return indices

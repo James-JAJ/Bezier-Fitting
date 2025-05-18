@@ -31,6 +31,7 @@ __all__ = [
     "make_circular_index",
     "remove_consecutive_duplicates",
     "shrink_contours",
+    "find_simplified_indices",
     #server_tools
     "custom_print",
     "set_console_output_ref",
