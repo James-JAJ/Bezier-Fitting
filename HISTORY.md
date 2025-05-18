@@ -7,3 +7,4 @@
 2025/05/16 01:30 app.py: 已將所有檔案更新至GitHub 未來將以此版本進行更動
 2025/05/17 01:24 app.py: 已將部分擬合程式加入 未來將進行整合
 2025/05/18 02:44 image_fitting.py: 無法使用..utils 匯入、image_fitting 內部contours = shrink_contours(contours, final_shrink_factor) 可能沒輸入到 原因有待調查
+2025/05/19 01:31 image_fitting.py: 已成功運行 但SVCFP還有待修正
