@@ -1,9 +1,13 @@
 # -*- coding: utf-8 -*-
 import numpy as np
 import sys
-sys.stdout.reconfigure(encoding='utf-8')
-from utils import *
+import os
 import cv2
+sys.stdout.reconfigure(encoding='utf-8')
+print(sys.path)
+print(os.getcwd())
+from utils import *
+
 
 
 # 主程式

@@ -7,7 +7,7 @@ import time
 import threading
 import os
 from utils import *  # 導入所有工具函數，包括 server_tools 中的函數
-
+#print(os.getcwd())
 #system initialization
 sys.stdout.reconfigure(encoding='utf-8')  # 改變輸出的
 
