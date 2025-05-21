@@ -4,7 +4,7 @@ import sys
 import os
 import cv2
 sys.stdout.reconfigure(encoding='utf-8')
-print(sys.path)
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 print(os.getcwd())
 from utils import *
 
@@ -13,7 +13,7 @@ from utils import *
 # 主程式
 if __name__ == "__main__":
     # --- 可調參數 ---
-    image_path = 'A.png'
+    image_path = 'test/B.png'
     scale_factor = 2             # 前處理放大倍數
     final_shrink_factor = 0.5    # 縮小倍數
     blur_ksize = 3               # 模糊核大小  

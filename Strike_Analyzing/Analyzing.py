@@ -10,6 +10,7 @@ sys.stdout.reconfigure(encoding='utf-8')
 def load_image(path, size=(128, 128)):
     img = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
     img = cv2.threshold(img, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1]
+    cv2.imshow(img)
     img = cv2.resize(img, size)
     return img
 
