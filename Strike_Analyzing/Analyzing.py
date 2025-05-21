@@ -4,14 +4,21 @@ import mahotas
 from skimage.feature import hog
 from skimage.transform import resize
 import sys
+import os
 sys.stdout.reconfigure(encoding='utf-8')
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from scipy.spatial import procrustes
+from scipy.optimize import linear_sum_assignment
+from pyemd import emd
+
+from utils import *
 
 # --- 載入並處理圖片 ---
-def load_image(path, size=(128, 128)):
+def load_image(path, size=(500, 500)):
     img = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
     img = cv2.threshold(img, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1]
-    cv2.imshow(img)
     img = cv2.resize(img, size)
+    showimg(img)
     return img
 
 # --- 1. Hu Moments ---
@@ -72,9 +79,10 @@ def compare_all_methods(imgA, imgB, label):
 
 # --- 主程式 ---
 if __name__ == "__main__":
-    target = load_image("target.png")
-    test1 = load_image("test1.png")
-    test2 = load_image("test2.png")
+    target = load_image("Strike_Analyzing/target.png")
+    test1 = load_image("Strike_Analyzing/test1.png")
+    test2 = load_image("Strike_Analyzing/test2.png")
 
     compare_all_methods(target, test1, "Test 1")
     compare_all_methods(target, test2, "Test 2")
+

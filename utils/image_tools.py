@@ -4,7 +4,7 @@ import sys
 import os
 import base64
 from .server_tools import *
-def inputimgcolortobinary(imgpath):
+def inputimg_colortobinary(imgpath):
     """
     輸入圖片回傳二進制檔
     Args:

@@ -8,4 +8,5 @@
 2025/05/17 01:24 app.py: 已將部分擬合程式加入 未來將進行整合
 2025/05/18 02:44 image_fitting.py: 無法使用..utils 匯入、image_fitting 內部contours = shrink_contours(contours, final_shrink_factor) 可能沒輸入到 原因有待調查
 2025/05/19 01:31 image_fitting.py: 已成功運行 但SVCFP還有待修正
-2025/05/21 15.30 image_fitting.py: 已修正在資料夾情況下的問題
+2025/05/21 15:30 image_fitting.py: 已修正在資料夾情況下的問題
+2025/05/22 02:02 SVCFP_Analyzing.py: 已將SVCFP加上程式並成功運行 但後續部分出現格式錯誤有待釐清將SVCFP加上程式並成功運行 但後續部分出現格式錯誤有待釐清

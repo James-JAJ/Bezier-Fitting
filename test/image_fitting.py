@@ -5,7 +5,7 @@ import os
 import cv2
 sys.stdout.reconfigure(encoding='utf-8')
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-print(os.getcwd())
+#print(os.getcwd())
 from utils import *
 
 

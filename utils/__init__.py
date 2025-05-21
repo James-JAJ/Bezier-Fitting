@@ -12,7 +12,7 @@ __all__ = [
     #ga
     "genetic_algorithm",
     #image_tools
-    "inputimgcolortobinary",
+    "inputimg_colortobinary",
     "inputimg_colortogray",
     "showimg",
     "save_image",
