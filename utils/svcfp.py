@@ -520,5 +520,5 @@ def svcfp_queue(paths, simplified_points, min_radius=10, max_radius=50, curvatur
         custom_print(ifserver,f"關鍵點座標: {filtered_key_points}")
 
     mapped_idx = find_simplified_indices(paths,filtered_key_points)
-    filtered_key_points=convert_pairs_to_tuples(filtered_key_points)
+    #filtered_key_points=convert_pairs_to_tuples(filtered_key_points)
     return filtered_key_points, mapped_idx

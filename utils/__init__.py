@@ -32,6 +32,13 @@ __all__ = [
     "remove_consecutive_duplicates",
     "shrink_contours",
     "convert_pairs_to_tuples",
+    "chord_length_parameterize",
+    "bernstein_matrix",
+    "fit_bezier_curve",
+    "bezier_eval",
+    "compute_fitting_error",
+    "fit_and_evaluate_bezier",
+    "convert_tuples_to_lists",
     #server_tools
     "custom_print",
     "set_console_output_ref",

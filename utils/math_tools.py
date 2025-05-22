@@ -136,3 +136,59 @@ def convert_pairs_to_tuples(obj):
         # 否則遞迴處理內部
         return [convert_pairs_to_tuples(item) for item in obj]
     return obj  # 若不是list就原樣返回
+def chord_length_parameterize(points: np.ndarray) -> np.ndarray:
+    distances = np.linalg.norm(np.diff(points, axis=0), axis=1)
+    cumulative = np.insert(np.cumsum(distances), 0, 0)
+
+    if cumulative[-1] == 0:
+        # 所有點重合，無法參數化，直接均勻分布
+        t = np.linspace(0, 1, len(points))
+    else:
+        t = cumulative / cumulative[-1]  # Normalize to [0, 1]
+    
+    return t
+
+def bernstein_matrix(t: np.ndarray) -> np.ndarray:
+    B = np.zeros((len(t), 4))
+    B[:, 0] = (1 - t) ** 3
+    B[:, 1] = 3 * (1 - t) ** 2 * t
+    B[:, 2] = 3 * (1 - t) * t ** 2
+    B[:, 3] = t ** 3
+    return B
+def fit_bezier_curve(points: np.ndarray) -> np.ndarray:
+    t = chord_length_parameterize(points)
+    B = bernstein_matrix(t)
+    # Solve least squares: B @ C = points
+    Cx, _, _, _ = np.linalg.lstsq(B, points[:, 0], rcond=None)
+    Cy, _, _, _ = np.linalg.lstsq(B, points[:, 1], rcond=None)
+    control_points = np.column_stack([Cx, Cy])
+    return control_points
+def bezier_eval(control_points: np.ndarray, t: np.ndarray) -> np.ndarray:
+    B = bernstein_matrix(t)
+    return B @ control_points
+def compute_fitting_error(points: np.ndarray, control_points: np.ndarray) -> float:
+    t = chord_length_parameterize(points)
+    fitted_points = bezier_eval(control_points, t)
+    errors = np.linalg.norm(points - fitted_points, axis=1)
+    return np.max(errors), np.mean(errors)
+def fit_and_evaluate_bezier(points: np.ndarray):
+    control_points = fit_bezier_curve(points)
+    max_err, mean_err = compute_fitting_error(points, control_points)
+    return control_points, max_err, mean_err
+def convert_tuples_to_lists(city: list) -> list:
+    """
+    若城市中點是 tuple，則轉換為 list。
+    如果已是 list 則不變。
+    """
+    if not isinstance(city, list):
+        raise ValueError("城市資料必須是 list 格式")
+    
+    new_city = []
+    for pt in city:
+        if isinstance(pt, tuple):
+            new_city.append(list(pt))
+        else:
+            new_city.append(pt)
+    
+    return new_city
+

@@ -9,3 +9,4 @@
 2025/05/16 10:47 svcfp.py, math_tools.py, image_tools.py: 將SVCFP(extra)加入utils資料集
 2025/05/16 14:50 bezier.py, ga.py, image_tools.py: 已加上函數註解
 2025/05/18 01:25 server_tool.py: 更改成非伺服器可用函數
+2025/05/22 15:55 math_tools.py: 新增高斯牛頓法和小工具
