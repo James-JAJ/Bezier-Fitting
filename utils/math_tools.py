@@ -128,3 +128,11 @@ def find_simplified_indices(paths, simplified_points):
         if not found:
             raise ValueError(f"Point {sp} not found in paths.")
     return indices
+def convert_pairs_to_tuples(obj):
+    if isinstance(obj, list):
+        # 如果是長度為2的純數字list → 轉成tuple
+        if len(obj) == 2 and all(isinstance(i, (int, float)) for i in obj):
+            return tuple(obj)
+        # 否則遞迴處理內部
+        return [convert_pairs_to_tuples(item) for item in obj]
+    return obj  # 若不是list就原樣返回

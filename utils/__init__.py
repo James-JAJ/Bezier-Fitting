@@ -31,6 +31,7 @@ __all__ = [
     "make_circular_index",
     "remove_consecutive_duplicates",
     "shrink_contours",
+    "convert_pairs_to_tuples",
     #server_tools
     "custom_print",
     "set_console_output_ref",

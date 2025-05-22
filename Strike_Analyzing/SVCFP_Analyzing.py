@@ -9,14 +9,45 @@ sys.stdout.reconfigure(encoding='utf-8')
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 #print(os.getcwd())
 from utils import *
+# 座標格式轉換器
+# 將多層嵌套的座標列表轉換為簡單的 [(),()]格式
 
-def flatten_list_generator(nested_list):
-    for item in nested_list:
-        if isinstance(item, list):
-            yield from flatten_list_generator(item)
+def convert_coordinates(nested_coords):
+    """
+    將嵌套的座標列表轉換為簡單的 (x,y) 元組列表
+    
+    參數:
+    nested_coords: 多層嵌套的座標列表
+    
+    返回:
+    簡化後的座標列表，格式為 [(x1,y1), (x2,y2), ...]
+    """
+    result = []
+    
+    def extract_coords(coords):
+        """遞歸提取座標"""
+        if isinstance(coords, list):
+            if len(coords) == 2 and all(isinstance(x, (int, float)) for x in coords):
+                # 這是一個座標點 [x, y]
+                return [tuple(coords)]
+            else:
+                # 這是一個包含多個元素的列表，遞歸處理
+                extracted = []
+                for item in coords:
+                    extracted.extend(extract_coords(item))
+                return extracted
+        elif isinstance(coords, tuple) and len(coords) == 2:
+            # 這已經是一個座標元組 (x, y)
+            return [coords]
         else:
-            yield item
-
+            return []
+    
+    # 對輸入的每個多邊形進行處理
+    for polygon in nested_coords:
+        polygon_coords = extract_coords(polygon)
+        result.extend(polygon_coords)
+    
+    return result
 # ========== Utility Functions ==========
 
 def load_and_preprocess_image(path):
@@ -60,31 +91,6 @@ def emd_alignment(src, dst):
 
 
 # ========== Main Comparison Pipeline ==========
-
-def compare_images(img_path1, img_path2):
-    contour1 = load_and_preprocess_image(img_path1)
-    contour2 = load_and_preprocess_image(img_path2)
-
-    keypoints1 = svcfp(contour1)
-    keypoints2 = svcfp(contour2)
-
-    # -- RANSAC + Affine --
-    affine_matrix = ransac_affine_transform(keypoints2, keypoints1)
-    if affine_matrix is not None:
-        aligned_ransac = cv2.transform(np.array([keypoints2]), affine_matrix)[0]
-        save_transformation_matrix(affine_matrix, "ransac_affine.npy")
-    else:
-        aligned_ransac = keypoints2
-
-    # -- Procrustes --
-    aligned_procrustes = procrustes_analysis(keypoints1, keypoints2)
-    save_transformation_matrix(aligned_procrustes, "procrustes.npy")
-
-    # -- EMD --
-    aligned_emd = emd_alignment(keypoints1, keypoints2)
-    save_transformation_matrix(aligned_emd, "emd_aligned.npy")
-
-    return aligned_ransac, aligned_procrustes, aligned_emd, keypoints1
 
 
 
@@ -159,11 +165,16 @@ if __name__ == "__main__":
                 ifserver=0
             )
             svcfplist2.append(custom_points)
-        keypoints1 = flatten_list_generator(svcfplist1)
-        keypoints2 = flatten_list_generator(svcfplist2)
+
+
+        keypoints1 = np.array(convert_coordinates(svcfplist1))
+        keypoints2 = np.array(convert_coordinates(svcfplist2))
+
 
         # -- RANSAC + Affine --
         affine_matrix = ransac_affine_transform(keypoints2, keypoints1)
+        
+        
         if affine_matrix is not None:
             aligned_ransac = cv2.transform(np.array([keypoints2]), affine_matrix)[0]
             save_transformation_matrix(affine_matrix, "ransac_affine.npy")
@@ -181,9 +192,10 @@ if __name__ == "__main__":
         # ========== Example Usage ==========
 
 
-        aligned_ransac, aligned_procrustes, aligned_emd, base_keypoints = compare_images(img1_path, img2_path)
 
-        aligned_ransac[:5], aligned_procrustes[:5], aligned_emd[:5], base_keypoints[:5]
+
+        aligned_ransac[:5], aligned_procrustes[:5], aligned_emd[:5], keypoints1[:5]
+
         
     except Exception as e:
         print(f"發生錯誤: {e}")
