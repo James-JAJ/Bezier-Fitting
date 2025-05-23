@@ -13,7 +13,7 @@ from utils import *
 # 主程式
 if __name__ == "__main__":
     # --- 可調參數 ---
-    image_path = 'test/E.png'
+    image_path = 'test/B.png'
     scale_factor = 2             # 前處理放大倍數
     final_shrink_factor = 0.5    # 縮小倍數
     blur_ksize = 3               # 模糊核大小  
@@ -65,7 +65,7 @@ if __name__ == "__main__":
             width, height = vis_img.shape[1], vis_img.shape[0]
             # 繪製原始輪廓
             cv2.drawContours(vis_img, [contour], -1, (0, 255, 0), 1)
-            
+            """
             # 繪製RDP簡化後的點（紅色）
             for point in rdp_points:
                 cv2.circle(vis_img, (point[0], point[1]), 3, (0, 0, 255), -1)
@@ -73,6 +73,7 @@ if __name__ == "__main__":
             # 繪製自訂演算法簡化後的點（藍色）
             for point in custom_points:
                 cv2.circle(vis_img, (int(point[0]), int(point[1])), 5, (255, 0, 0), -1)
+            """
             #print(custom_points)
             for i in range(len(custom_idx)):
                 print(path[custom_idx[i]])
@@ -88,7 +89,7 @@ if __name__ == "__main__":
 
                 # 🎯 畫貝茲曲線在 vis_img 上（紅線）
                 curve_points = bezier_curve_calculate(ctrl_pts)
-                vis_img = draw_curve_on_image(vis_img, curve_points, 2)
+                vis_img = draw_curve_on_image(vis_img, curve_points, 1)
             #GA
             """
             # 🎯 改為直接在原圖上畫貝茲線與節點
