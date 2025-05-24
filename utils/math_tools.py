@@ -192,3 +192,20 @@ def convert_tuples_to_lists(city: list) -> list:
     
     return new_city
 
+def covariance_between_point_sets(A, B):
+    A = np.array(A, dtype=np.float64).flatten()
+    B = np.array(B, dtype=np.float64).flatten()
+    
+    # 對齊長度
+    min_len = min(len(A), len(B))
+    A = A[:min_len]
+    B = B[:min_len]
+
+    # 計算協方差和變異數
+    cov = np.cov(A, B)[0, 1]
+    var_A = np.var(A, ddof=1)
+    var_B = np.var(B, ddof=1)
+    
+    # 計算皮爾森係數 η
+    eta = cov / np.sqrt(var_A * var_B)
+    return eta

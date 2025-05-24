@@ -39,6 +39,7 @@ __all__ = [
     "compute_fitting_error",
     "fit_and_evaluate_bezier",
     "convert_tuples_to_lists",
+    "covariance_between_point_sets",
     #server_tools
     "custom_print",
     "set_console_output_ref",

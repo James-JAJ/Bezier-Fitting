@@ -13,14 +13,14 @@ from utils import *
 # 主程式
 if __name__ == "__main__":
     # --- 可調參數 ---
-    image_path = 'test/B.png'
+    image_path = 'test/A.png'
     scale_factor = 2             # 前處理放大倍數
     final_shrink_factor = 0.5    # 縮小倍數
     blur_ksize = 3               # 模糊核大小  
     threshold_value = 200        # 二質化閾值
     epsilon = 1.0                # 簡化輪廓的誤差
-    rdp_epsilon = 3              # RDP簡化閾值
-    curvature_threshold = 30     # 曲率閾值
+    rdp_epsilon = 2             # RDP簡化閾值
+    curvature_threshold = 20    # 曲率閾值
     min_radius = 10              # 最小搜尋半徑
     max_radius = 50              # 最大搜尋半徑
     debug = True                 # 是否打印除錯信息
