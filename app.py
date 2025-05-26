@@ -64,7 +64,7 @@ def process_upload(width, height, contours, testmode):
 
     # --- 可調參數 ---
     rdp_epsilon = 4             # RDP簡化閾值
-    curvature_threshold = 26   # 曲率閾值
+    curvature_threshold = 23   # 曲率閾值
     min_radius = 10             # 最小搜尋半徑
     max_radius = 50             # 最大搜尋半徑
     debug = True                # 是否打印除錯信息
