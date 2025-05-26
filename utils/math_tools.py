@@ -148,64 +148,42 @@ def chord_length_parameterize(points: np.ndarray) -> np.ndarray:
     
     return t
 
-def bernstein_matrix(t: np.ndarray) -> np.ndarray:
-    B = np.zeros((len(t), 4))
-    B[:, 0] = (1 - t) ** 3
-    B[:, 1] = 3 * (1 - t) ** 2 * t
-    B[:, 2] = 3 * (1 - t) * t ** 2
-    B[:, 3] = t ** 3
-    return B
-def fit_bezier_curve(points: np.ndarray) -> np.ndarray:
-    t = chord_length_parameterize(points)
-    B = bernstein_matrix(t)
-    # Solve least squares: B @ C = points
-    Cx, _, _, _ = np.linalg.lstsq(B, points[:, 0], rcond=None)
-    Cy, _, _, _ = np.linalg.lstsq(B, points[:, 1], rcond=None)
-    control_points = np.column_stack([Cx, Cy])
-    return control_points
-def bezier_eval(control_points: np.ndarray, t: np.ndarray) -> np.ndarray:
-    B = bernstein_matrix(t)
-    return B @ control_points
-def compute_fitting_error(points: np.ndarray, control_points: np.ndarray) -> float:
-    t = chord_length_parameterize(points)
-    fitted_points = bezier_eval(control_points, t)
-    errors = np.linalg.norm(points - fitted_points, axis=1)
-    return np.max(errors), np.mean(errors)
-def fit_and_evaluate_bezier(points: np.ndarray):
-    control_points = fit_bezier_curve(points)
-    max_err, mean_err = compute_fitting_error(points, control_points)
-    return control_points, max_err, mean_err
-def convert_tuples_to_lists(city: list) -> list:
+def fit_fixed_end_bezier(points, P0, P3):
     """
-    若城市中點是 tuple，則轉換為 list。
-    如果已是 list 則不變。
+    給定首尾點 P0, P3 與中間曲線點序列 points，擬合中間兩個控制點 P1, P2。
+    返回 4 個控制點的 ndarray。
     """
-    if not isinstance(city, list):
-        raise ValueError("城市資料必須是 list 格式")
-    
-    new_city = []
-    for pt in city:
-        if isinstance(pt, tuple):
-            new_city.append(list(pt))
-        else:
-            new_city.append(pt)
-    
-    return new_city
+    n = len(points)
+    if n < 2:
+        return None  # 無法擬合
 
-def covariance_between_point_sets(A, B):
-    A = np.array(A, dtype=np.float64).flatten()
-    B = np.array(B, dtype=np.float64).flatten()
-    
-    # 對齊長度
-    min_len = min(len(A), len(B))
-    A = A[:min_len]
-    B = B[:min_len]
+    # Chord-length parameterization
+    dists = np.sqrt(np.sum(np.diff(points, axis=0) ** 2, axis=1))
+    cumulative = np.insert(np.cumsum(dists), 0, 0)
+    if cumulative[-1] == 0:
+        return None
+    t = cumulative / cumulative[-1]
 
-    # 計算協方差和變異數
-    cov = np.cov(A, B)[0, 1]
-    var_A = np.var(A, ddof=1)
-    var_B = np.var(B, ddof=1)
-    
-    # 計算皮爾森係數 η
-    eta = cov / np.sqrt(var_A * var_B)
-    return eta
+    # Bernstein basis (只保留 P1, P2 的基底係數)
+    A = np.zeros((n, 2))
+    for i in range(n):
+        ti = t[i]
+        A[i, 0] = 3 * (1 - ti)**2 * ti   # 對應 P1
+        A[i, 1] = 3 * (1 - ti) * ti**2   # 對應 P2
+
+    # 右側向量 b = Q_i - (1-t)^3 * P0 - t^3 * P3
+    b = points - np.outer((1 - t) ** 3, P0) - np.outer(t ** 3, P3)
+
+    # 解最小二乘: Ax = b → x ≈ [P1, P2]
+    try:
+        Px, _, _, _ = np.linalg.lstsq(A, b[:, 0], rcond=None)
+        Py, _, _, _ = np.linalg.lstsq(A, b[:, 1], rcond=None)
+    except np.linalg.LinAlgError:
+        return None
+
+    P1 = np.array([Px[0], Py[0]])
+    P2 = np.array([Px[1], Py[1]])
+
+    #print([P0,P1,P2,P3])
+    return [tuple(P0), tuple(P1), tuple(P2), tuple(P3)]
+

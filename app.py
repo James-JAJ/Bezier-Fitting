@@ -59,88 +59,97 @@ def get_message():
         
 lock = threading.Lock()
 
-#處理軌跡上傳資訊 
-def process_upload(width, height, paths, testmode):
+def process_upload(width, height, contours, testmode):
     global beizer_array, image_base64
+
+    # --- 可調參數 ---
+    rdp_epsilon = 2             # RDP簡化閾值
+    curvature_threshold = 30    # 曲率閾值
+    min_radius = 10             # 最小搜尋半徑
+    max_radius = 50             # 最大搜尋半徑
+    debug = True                # 是否打印除錯信息
+    # ----------------
+
     with lock:
         try:
-            # paths: 多筆畫陣列 [[點位1, 點位2, ...], [點位1, 點位2, ...], ...]
-            # 每個點位是 (x, y) 座標
+            if testmode:
+                # 白底彩色圖像：便於畫紅線與綠點
+                final = np.ones((height, width, 3), dtype=np.uint8) * 255
+            else:
+                # 黑底圖像（不影響實際圖像輸出）
+                final = np.zeros((height, width, 3), dtype=np.uint8)
 
-            final = np.zeros((height, width), dtype=np.uint8)
             start_time = time.time()
-            paths = np.array(paths)  # Use dtype=object for jagged arrays
-            pathslen = len(paths)
-            custom_print("Receiving image...")
-            custom_print("Unpoccessed paths:", pathslen)
+            custom_print("Receiving contours...")
 
-            paths=interpolate_points(paths[0])
+            rdptotal = 0
+            pointtotal = 0
+            result = []
 
-            custom_print("補點後",len(paths))
+            for contour in contours:
+                if len(contour) <= 20:
+                    continue
 
-            # [筆畫][每筆畫點位]
-            jointsrdp = rdp(paths,10)
-            custom_print("rdp:", len(jointsrdp))
+                fixcontour = remove_consecutive_duplicates(contour)
+                rdp_points = rdp(fixcontour, epsilon=rdp_epsilon)
+                rdptotal += len(rdp_points)
 
-            joints,joint_idx = svcfp(paths,rdp_epsilon=10)
-            
-            result = []  # 這裡應該儲存所有路徑的控制點
-            for i in range(len(joint_idx)-1):
-                target_curve = []
-                # 收集從 jointsA[h][i] 到 jointsA[h][i+1] 之間的所有點位
-                custom_print("!",joint_idx[i], joint_idx[i+1])  
-                # 收集該範圍內的所有點
-                for j in range(joint_idx[i], joint_idx[i+1]+1):
-                    point = paths[j]
-                    
-                    # 確保點位是整數
-                    target_curve.append((int(point[0]), int(point[1])))
-                
-                # 輸出首尾點以便偵錯
-                custom_print(f"Line {i} from {target_curve[0]} to {target_curve[-1]}")
-                
-                pre = genetic_algorithm(target_curve, target_curve[0], target_curve[-1], width, height)
-                result.append(pre)
-                if not testmode:
-                    beizer_array.append(pre)
+                # 執行特徵點擷取
+                custom_points, custom_idx = svcfp(
+                    fixcontour,
+                    min_radius=min_radius,
+                    max_radius=max_radius,
+                    curvature_threshold=curvature_threshold,
+                    ifserver=1
+                )
 
-                # 生成貝茲曲線並繪製
-                curve_points = bezier_curve_calculate(pre)
-                predict = np.zeros((height, width), dtype=np.uint8)
-                predict = draw_curve_on_image(predict, curve_points, 3)
-                final = stack_image(final, predict)
-        
-            if testmode:    #單筆繪圖模式 存入 圖片
-                final = cv2.cvtColor(final.astype(np.uint8), cv2.COLOR_GRAY2BGR)
-                mask_white = (final == np.array([255, 255, 255])).all(axis=2)
-                mask_black = (final == np.array([0, 0, 0])).all(axis=2)
-                final[mask_white] = [0, 0, 255]
-                final[mask_black] = [255, 255, 255]
-                """for point in jointsrdp:
-                    final = cv2.circle(final, (int(point[0]), int(point[1])), 5, (255, 0, 0), -1)
-                """
-                
-                for point in joints:
+                pointtotal += len(custom_points)
+                path = fixcontour
+
+                for i in range(len(custom_idx) - 1):
+                    start = custom_idx[i]
+                    end = custom_idx[i + 1]
+                    target_curve = path[start:end]
+                    target_curve = np.array([(int(p[0]), int(p[1])) for p in target_curve])
+
+                    if len(target_curve) == 0:
+                        custom_print(f"⚠️ Line {i} 空曲線跳過")
+                        continue
+
+                    custom_print(f"Line {i}: {target_curve[0]} -> {target_curve[-1]}")
+
+                    ctrl_pts = fit_fixed_end_bezier(target_curve, path[start], path[end])
+                    if ctrl_pts is None:
+                        custom_print(f"⚠️ 無法擬合 Line {i}")
+                        continue
+
+                    result.append(ctrl_pts)
+                    if not testmode:
+                        beizer_array.append(ctrl_pts)
+
+                    curve_points = bezier_curve_calculate(ctrl_pts)
+                    final = draw_curve_on_image(final, curve_points, thickness=2, color=(0, 0, 255))  # 紅色線條
+
+                    if len(curve_points) == 0:
+                        custom_print(f"⚠️ Line {i} 沒產生曲線點")
+                    elif np.count_nonzero(cv2.cvtColor(final.copy(), cv2.COLOR_BGR2GRAY)) == 0:
+                        custom_print(f"⚠️ Line {i} 畫完仍為全黑圖")
+
+            if testmode:
+                # 畫綠色特徵點
+                for point in custom_points:
                     final = cv2.circle(final, (int(point[0]), int(point[1])), 5, (0, 255, 0), -1)
-                
-                """
-                for point in paths:
-                    final = cv2.circle(final, (int(point[0]), int(point[1])), 5, (0, 255, 0), 2) 
-                """
-                custom_print(result)
-                # 計算和顯示處理時間
+
                 end_time = time.time()
-                custom_print(f"Processing completed in {end_time - start_time:.2f} seconds")
-                
+                custom_print(f"✅ 處理完成！共花費 {end_time - start_time:.2f} 秒")
                 image_base64.append(encode_image_to_base64(final))
-                #return result  # 返回所有線段的控制點，以便後續使用
-                
-        
+
         except Exception as e:
             import traceback
             error_message = traceback.format_exc()
-            custom_print("Error in process_upload:" , error_message) #紀錄錯誤訊息
-            #return []
+            custom_print("❌ process_upload 發生錯誤：", error_message)
+
+                
 
 @app.route('/upload', methods=['POST'])
 def upload():
