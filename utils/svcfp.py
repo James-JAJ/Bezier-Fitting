@@ -44,7 +44,7 @@ def rdp(points, epsilon):
     else:
         return [start.tolist(), end.tolist()]
 #path_simplify_and_extract:自創路徑演算法提取特徵點
-def svcfp(paths, min_radius=10, max_radius=50, curvature_threshold=27, rdp_epsilon=20, ifserver=1):
+def svcfp(paths, min_radius=10, max_radius=50, curvature_threshold=27, rdp_epsilon=2, ifserver=1):
     import numpy as np
 
     paths = np.array(paths)
@@ -160,10 +160,13 @@ def svcfp(paths, min_radius=10, max_radius=50, curvature_threshold=27, rdp_epsil
             combined_value *= (2 + angle_change)
 
             if cross_sign_change:
-                combined_value *= 1.5  # 增加權重
+                combined_value *= 1.1  # 增加權重
 
             stdlist.append(mean_std)
             max_values.append(combined_value)
+
+            print(f"點 {i} (原始索引 {original_idx}): 標準差={mean_std:.2f}, 最大距離={mean_max_dist:.2f}, 角度變化={angle_change:.2f}, 加權值={combined_value:.2f}")
+
         else:
             stdlist.append(0)
             max_values.append(0)

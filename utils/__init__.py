@@ -33,6 +33,8 @@ __all__ = [
     "shrink_contours",
     "convert_pairs_to_tuples",
     "fit_fixed_end_bezier",
+    "fit_least_squares_bezier",
+    "fit_fixed_end_bspline",
     #server_tools
     "custom_print",
     "set_console_output_ref",

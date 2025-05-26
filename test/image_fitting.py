@@ -89,7 +89,7 @@ if __name__ == "__main__":
                 #print(target_curve)
                 if len(target_curve)<=10:
                     continue
-                ctrl_pts = fit_fixed_end_bezier(target_curve, path[start],path[end])
+                ctrl_pts = fit_fixed_end_bezier(target_curve)
 
                 # 🎯 畫貝茲曲線在 vis_img 上（紅線）
                 curve_points = bezier_curve_calculate(ctrl_pts)

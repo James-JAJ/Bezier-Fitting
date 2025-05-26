@@ -63,8 +63,8 @@ def process_upload(width, height, contours, testmode):
     global beizer_array, image_base64
 
     # --- 可調參數 ---
-    rdp_epsilon = 2             # RDP簡化閾值
-    curvature_threshold = 30    # 曲率閾值
+    rdp_epsilon = 4             # RDP簡化閾值
+    curvature_threshold = 26   # 曲率閾值
     min_radius = 10             # 最小搜尋半徑
     max_radius = 50             # 最大搜尋半徑
     debug = True                # 是否打印除錯信息
@@ -85,12 +85,8 @@ def process_upload(width, height, contours, testmode):
             rdptotal = 0
             pointtotal = 0
             result = []
-
             for contour in contours:
-                if len(contour) <= 20:
-                    continue
-
-                fixcontour = remove_consecutive_duplicates(contour)
+                fixcontour=interpolate_points(contour)
                 rdp_points = rdp(fixcontour, epsilon=rdp_epsilon)
                 rdptotal += len(rdp_points)
 
@@ -100,7 +96,8 @@ def process_upload(width, height, contours, testmode):
                     min_radius=min_radius,
                     max_radius=max_radius,
                     curvature_threshold=curvature_threshold,
-                    ifserver=1
+                    rdp_epsilon=rdp_epsilon,
+                    ifserver=0
                 )
 
                 pointtotal += len(custom_points)
@@ -118,10 +115,9 @@ def process_upload(width, height, contours, testmode):
 
                     custom_print(f"Line {i}: {target_curve[0]} -> {target_curve[-1]}")
 
-                    ctrl_pts = fit_fixed_end_bezier(target_curve, path[start], path[end])
-                    if ctrl_pts is None:
-                        custom_print(f"⚠️ 無法擬合 Line {i}")
-                        continue
+                    ctrl_pts = fit_fixed_end_bezier(target_curve)
+                    print(target_curve[-1])
+                    print(ctrl_pts[-1])
 
                     result.append(ctrl_pts)
                     if not testmode:
@@ -138,8 +134,10 @@ def process_upload(width, height, contours, testmode):
             if testmode:
                 # 畫綠色特徵點
                 for point in custom_points:
-                    final = cv2.circle(final, (int(point[0]), int(point[1])), 5, (0, 255, 0), -1)
-
+                    final = cv2.circle(final, (int(point[0]), int(point[1])), 5, (0, 255, 0), 2)
+                for point in rdp_points:
+                    final = cv2.circle(final, (int(point[0]), int(point[1])), 5, (255, 0, 0), -1)
+                
                 end_time = time.time()
                 custom_print(f"✅ 處理完成！共花費 {end_time - start_time:.2f} 秒")
                 image_base64.append(encode_image_to_base64(final))

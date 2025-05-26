@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.interpolate import make_interp_spline
 
 #distance:距離差
 def distance(p1, p2):
@@ -148,7 +149,7 @@ def chord_length_parameterize(points: np.ndarray) -> np.ndarray:
     
     return t
 
-def fit_fixed_end_bezier(points, P0, P3):
+def fit_fixed_end_bezier(points):
     """
     給定首尾點 P0, P3 與中間曲線點序列 points，擬合中間兩個控制點 P1, P2。
     返回 4 個控制點的 ndarray。
@@ -156,7 +157,8 @@ def fit_fixed_end_bezier(points, P0, P3):
     n = len(points)
     if n < 2:
         return None  # 無法擬合
-
+    P0=points[0]
+    P3=points[-1]
     # Chord-length parameterization
     dists = np.sqrt(np.sum(np.diff(points, axis=0) ** 2, axis=1))
     cumulative = np.insert(np.cumsum(dists), 0, 0)
@@ -187,3 +189,72 @@ def fit_fixed_end_bezier(points, P0, P3):
     #print([P0,P1,P2,P3])
     return [tuple(P0), tuple(P1), tuple(P2), tuple(P3)]
 
+def fit_least_squares_bezier(points):
+    """
+    最小平方法擬合三階貝茲曲線，首尾控制點固定，求出中間兩個控制點。
+    :param points: 軌跡點列，形如 [(x0,y0), (x1,y1), ..., (xn,yn)]
+    :return: 4 個控制點 [P0, P1, P2, P3]
+    """
+    points = np.array(points)
+    n = len(points)
+    if n < 4:
+        raise ValueError("至少需要4個點進行擬合")
+
+    P0 = points[0]
+    P3 = points[-1]
+
+    # 參數化 t 值（均勻分佈）
+    t = np.linspace(0, 1, n)
+    B1 = 3 * (1 - t)**2 * t
+    B2 = 3 * (1 - t) * t**2
+
+    # 應變量 Y：扣掉固定點貢獻
+    C = points - np.outer((1 - t)**3, P0) - np.outer(t**3, P3)
+
+    # 組成線性系統 A * [P1; P2] = C
+    A = np.vstack([B1, B2]).T  # n x 2
+    # 解兩個線性系統，X 和 Y 分開解
+    AT_A = A.T @ A
+    AT_Cx = A.T @ C[:, 0]
+    AT_Cy = A.T @ C[:, 1]
+
+    Px = np.linalg.solve(AT_A, AT_Cx)
+    Py = np.linalg.solve(AT_A, AT_Cy)
+
+    P1 = np.array([Px[0], Py[0]])
+    P2 = np.array([Px[1], Py[1]])
+
+    return [P0, P1, P2, P3]
+#垃圾
+def fit_fixed_end_bspline(points):
+    """
+    使用三次 B-spline 擬合點列，固定首尾點，回傳 4 組控制點
+    """
+    points = np.array(points)
+    n = len(points)
+    if n < 4:
+        return [tuple(points[0])] * 4  # 資料太少，退回平線
+
+    # 首尾固定
+    P0 = points[0]
+    P3 = points[-1]
+
+    # 建立中間樣本點
+    t = np.linspace(0, 1, n)
+    x = points[:, 0]
+    y = points[:, 1]
+
+    # 使用 scipy 的 make_interp_spline 擬合樣條
+    try:
+        spline_x = make_interp_spline(t, x, k=3)
+        spline_y = make_interp_spline(t, y, k=3)
+
+        # 從 spline 的 t 值中取出中段控制點
+        control_t = [1/3, 2/3]
+        P1 = np.array([spline_x(control_t[0]), spline_y(control_t[0])])
+        P2 = np.array([spline_x(control_t[1]), spline_y(control_t[1])])
+    except:
+        # 退回為線段
+        return [tuple(P0)] * 4
+
+    return [tuple(P0), tuple(P1), tuple(P2), tuple(P3)]
