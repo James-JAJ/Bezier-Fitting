@@ -50,6 +50,7 @@ def svcfp(paths, min_radius=10, max_radius=50, curvature_threshold=27, rdp_epsil
     simplified_points = rdp(paths, rdp_epsilon)
     custom_print(ifserver, f"rdp 簡化後的點數: {len(simplified_points)}")
 
+    # 建立 RDP 點在原始 paths 中的對應索引
     original_indices = []
     i = 0
     check_paths_idx = 0
@@ -64,83 +65,71 @@ def svcfp(paths, min_radius=10, max_radius=50, curvature_threshold=27, rdp_epsil
 
     stdlist, max_values, angle = [], [], []
     all_feature_values = []
-
-    def calculate_angle_change(p1, p2, p3):
-        if np.array_equal(p1, p2) or np.array_equal(p2, p3):
-            return 0
-        v1 = p1 - p2
-        v2 = p3 - p2
-        v1_norm = v1 / np.linalg.norm(v1)
-        v2_norm = v2 / np.linalg.norm(v2)
-        angle = np.dot(v1_norm, v2_norm)
-        return angle
+    #夾角變化
 
     def cross_sign(p1, p2, p3):
+        p1 = np.array(p1)
+        p2 = np.array(p2)
+        p3 = np.array(p3)
         v1 = p2 - p1
         v2 = p3 - p2
         cross = v1[0]*v2[1] - v1[1]*v2[0]
         return np.sign(cross)
+    length = len(paths)
 
-    prev_cross_sign = None
-
-    for i in range(len(original_indices)):
+    for i in range(len(simplified_points)):
         original_idx = original_indices[i]
         angle_change = 0
         cross_sign_change = False
-
-        if i > 1 and i < len(original_indices) - 1:
-            A = paths[original_indices[i - 2]]
-            B = paths[original_indices[i - 1]]
-            C = paths[original_indices[i]]
-            D = paths[original_indices[i + 1]]
+        print("!")
+        # 使用 RDP 點計算外積方向改變
+        if i > 1 and i < len(simplified_points) - 1:
+            A = simplified_points[i - 2]
+            B = simplified_points[i - 1]
+            C = simplified_points[i]
+            D = simplified_points[i + 1]
 
             sign1 = cross_sign(A, B, C)
             sign2 = cross_sign(B, C, D)
 
             if sign1 != 0 and sign2 != 0 and sign1 != sign2:
                 cross_sign_change = True
-
-        if i > 0 and i < len(original_indices) - 1:
-            prev_idx = original_indices[i - 1]
-            next_idx = original_indices[i + 1]
-            angle_change = calculate_angle_change(paths[prev_idx], paths[original_idx], paths[next_idx])
+        
+        # 使用 RDP 點計算內積角度
+        print(i,len(simplified_points) - 1)
+        if i > 0 and i < len(simplified_points) - 1:
+            A = simplified_points[i - 1]
+            B = simplified_points[i]
+            C = simplified_points[i + 1]
+            #print(A,B,C)
+            angle_change = calculate_angle_change(A, B, C)
+            #print(angle_change)
             angle.append(angle_change)
         else:
             angle.append(0)
 
+        # 以下統計是以 RDP 點為中心，從 paths 向左右固定格數擴展
         std_values = []
         max_distances = []
+        print("@")
+        for step_size in range(min_radius, max_radius):
+            temp = [paths[original_idx]]
 
-        for j in range(min_radius, max_radius):
-            temp = []
-            left_count, right_count = 0, 0
-
-            k = 0
-            while original_idx + k < len(paths) and distance(paths[original_idx], paths[original_idx + k]) < j:
-                temp.append(paths[original_idx + k])
-                right_count += 1
-                k += 1
-
-            k = 1
-            while original_idx - k >= 0 and distance(paths[original_idx], paths[original_idx - k]) < j:
-                temp.append(paths[original_idx - k])
-                left_count += 1
-                k += 1
-
-            diff = abs(left_count - right_count)
-            if diff > 0:
-                if left_count > right_count:
-                    k = right_count
-                    while original_idx + k < len(paths) and distance(paths[original_idx], paths[original_idx + k]) < j and diff > 0:
-                        temp.append(paths[original_idx + k])
-                        k += 1
-                        diff -= 1
+            # 向右擴展
+            for k in range(1, step_size + 1):
+                right_idx = original_idx + k
+                if right_idx < length:
+                    temp.append(paths[right_idx])
                 else:
-                    k = left_count
-                    while original_idx - k >= 0 and distance(paths[original_idx], paths[original_idx - k]) < j and diff > 0:
-                        temp.append(paths[original_idx - k])
-                        k += 1
-                        diff -= 1
+                    break
+
+            # 向左擴展
+            for k in range(1, step_size + 1):
+                left_idx = original_idx - k
+                if left_idx >= 0:
+                    temp.append(paths[left_idx])
+                else:
+                    break
 
             if len(temp) < 3:
                 continue
@@ -148,6 +137,7 @@ def svcfp(paths, min_radius=10, max_radius=50, curvature_threshold=27, rdp_epsil
             temp = np.array(temp)
             std_value = np.std(temp, axis=0)
             std_values.append(np.mean(std_value))
+
             avg_coords = np.mean(temp, axis=0)
             max_dist = np.max([distance(avg_coords, p) for p in temp])
             max_distances.append(max_dist)
@@ -155,17 +145,20 @@ def svcfp(paths, min_radius=10, max_radius=50, curvature_threshold=27, rdp_epsil
         if std_values and max_distances:
             mean_std = np.mean(std_values)
             mean_max_dist = np.mean(max_distances)
-            combined_value = 0.3 * mean_std + 0.7 * mean_max_dist
-            combined_value *= (2 + angle_change)
+            angle_weight = 0.4
+            std_weight = 0.3
+            dist_weight = 0.7
+            # 使用角度變化值直接作為加權參數（越大越尖銳）
+            angle_factor = 1.0 + (angle_change / 180.0)  # 將角度映射到[1, 2]範圍
+            combined_value = std_weight * mean_std + dist_weight * mean_max_dist+ angle_weight*angle_factor
 
             if cross_sign_change:
-                combined_value *= 1.1  # 增加權重
+                combined_value *= 1.1
 
             stdlist.append(mean_std)
             max_values.append(combined_value)
 
             print(f"點 {i} (原始索引 {original_idx}): 標準差={mean_std:.2f}, 最大距離={mean_max_dist:.2f}, 角度變化={angle_change:.2f}, 加權值={combined_value:.2f}")
-
         else:
             stdlist.append(0)
             max_values.append(0)
@@ -178,6 +171,7 @@ def svcfp(paths, min_radius=10, max_radius=50, curvature_threshold=27, rdp_epsil
             'angle': angle[-1]
         })
 
+    # 找出關鍵點
     candidate_breakpoints = [i for i, val in enumerate(max_values) if val > curvature_threshold]
 
     if len(simplified_points) > 0:
@@ -262,6 +256,9 @@ def calculate_cross_product_direction_change(p1, p2, p3):
 
 def calculate_angle_change(p1, p2, p3):
     """計算三點間的夾角（改進版）"""
+    p1 = np.array(p1)
+    p2 = np.array(p2)
+    p3 = np.array(p3)
     if np.array_equal(p1, p2) or np.array_equal(p2, p3):
         return 0
     
