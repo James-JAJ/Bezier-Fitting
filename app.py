@@ -64,10 +64,9 @@ def process_upload(width, height, contours, testmode):
 
     # --- 可調參數 ---
     rdp_epsilon = 4             # RDP簡化閾值
-    curvature_threshold = 23   # 曲率閾值
+    curvature_threshold = 41   # 曲率閾值
     min_radius = 10             # 最小搜尋半徑
     max_radius = 50             # 最大搜尋半徑
-    debug = True                # 是否打印除錯信息
     # ----------------
 
     with lock:
@@ -133,10 +132,11 @@ def process_upload(width, height, contours, testmode):
 
             if testmode:
                 # 畫綠色特徵點
-                for point in custom_points:
-                    final = cv2.circle(final, (int(point[0]), int(point[1])), 5, (0, 255, 0), 2)
                 for point in rdp_points:
                     final = cv2.circle(final, (int(point[0]), int(point[1])), 5, (255, 0, 0), -1)
+                for point in custom_points:
+                    final = cv2.circle(final, (int(point[0]), int(point[1])), 5, (0, 255, 0), 2)
+                
                 
                 end_time = time.time()
                 custom_print(f"✅ 處理完成！共花費 {end_time - start_time:.2f} 秒")

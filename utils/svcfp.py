@@ -111,7 +111,6 @@ def svcfp(paths, min_radius=10, max_radius=50, curvature_threshold=27, rdp_epsil
         # 以下統計是以 RDP 點為中心，從 paths 向左右固定格數擴展
         std_values = []
         max_distances = []
-        print("@")
         for step_size in range(min_radius, max_radius):
             temp = [paths[original_idx]]
 
@@ -151,6 +150,12 @@ def svcfp(paths, min_radius=10, max_radius=50, curvature_threshold=27, rdp_epsil
             # 使用角度變化值直接作為加權參數（越大越尖銳）
             angle_factor = 1.0 + (angle_change / 180.0)  # 將角度映射到[1, 2]範圍
             combined_value = std_weight * mean_std + dist_weight * mean_max_dist+ angle_weight*angle_factor
+            
+            combined_value = (
+                std_weight * mean_std + 
+                dist_weight * mean_max_dist + 
+                angle_weight * angle_change
+            ) * angle_factor
 
             if cross_sign_change:
                 combined_value *= 1.1
