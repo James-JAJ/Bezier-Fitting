@@ -45,8 +45,7 @@ def rdp(points, epsilon):
         return [start.tolist(), end.tolist()]
 #path_simplify_and_extract:自創路徑演算法提取特徵點
 def svcfp(paths, min_radius=10, max_radius=50, curvature_threshold=27, rdp_epsilon=2, ifserver=1):
-    import numpy as np
-
+    
     paths = np.array(paths)
     simplified_points = rdp(paths, rdp_epsilon)
     custom_print(ifserver, f"rdp 簡化後的點數: {len(simplified_points)}")
