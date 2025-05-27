@@ -148,8 +148,35 @@
 
                 reader.onload = (event) => {
                   const img = new Image();
+                  //2025/5/26 修改維持比例 
                   img.onload = () => {
-                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    // 計算圖片和 Canvas 的寬高比
+                    const imgAspectRatio = img.width / img.height;
+                    const canvasAspectRatio = canvas.width / canvas.height;
+
+                    let drawWidth;
+                    let drawHeight;
+                    let offsetX = 0;
+                    let offsetY = 0;
+
+                    // 判斷是以寬度為基準縮放還是以高度為基準縮放
+                    if (imgAspectRatio > canvasAspectRatio) {
+                      // 圖片比 Canvas 寬，以 Canvas 寬度為基準縮放
+                      drawWidth = canvas.width;
+                      drawHeight = canvas.width / imgAspectRatio;
+                      offsetY = (canvas.height - drawHeight) / 2; // 垂直置中
+                    } else {
+                      // 圖片比 Canvas 高，以 Canvas 高度為基準縮放
+                      drawHeight = canvas.height;
+                      drawWidth = canvas.height * imgAspectRatio;
+                      offsetX = (canvas.width - drawWidth) / 2; // 水平置中
+                    }
+
+                    // 清除 Canvas 內容，確保每次繪製都是新的圖片
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                    // 在計算出的尺寸和位置繪製圖片
+                    ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
                   };
                   img.src = event.target.result;
                 };
@@ -452,7 +479,46 @@
                 console.error("發生錯誤:", error);
                 btnSend.disabled = false; // 出錯時也要啟用按鈕
             });
-        }
+        }else {
+        // paths.length == 0 的情況：上傳 Canvas 圖像
+          if (intervalId !== null)
+              clearInterval(intervalId);
+
+          intervalId = setInterval(updateConsole, 1000);
+          consoleCounter = 30;
+
+          btnSend.disabled = true;
+
+          // 將 Canvas 內容轉換為圖片資料 (Base64 編碼)
+          const imageDataURL = canvas.toDataURL('image/png'); // 你可以選擇 'image/jpeg' 或其他格式
+
+          console.log("準備發送的資料 (Canvas 圖像):", imageDataURL.substring(0, 50) + "..."); // 顯示部分Base64字串用於調試
+
+          let uploadUrl = "/upload_image?testmode=" + clearOnDraw; // 建議為圖片上傳使用不同的 API 端點
+          fetch(uploadUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' }, // 由於我們發送的是 JSON，所以內容類型還是 application/json
+              body: JSON.stringify({
+                  image: imageDataURL, // 將 Base64 字串作為 image 字段的值
+                  width: canvas.width,
+                  height: canvas.height
+              })
+          }).then(response => {
+              console.log("收到回應", response);
+              return response.json();
+          })
+              .then(data => {
+                  console.log("解析後的資料", data);
+                  if (data.message) {
+                      showConsole(data);
+                  }
+                  btnSend.disabled = false;
+              })
+              .catch(error => {
+                  console.error("發生錯誤:", error);
+                  btnSend.disabled = false;
+              });
+      }
     }
         
         // 是否採用 單筆繪圖模式 的按鈕顯示切換

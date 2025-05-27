@@ -44,13 +44,11 @@ def rdp(points, epsilon):
     else:
         return [start.tolist(), end.tolist()]
 #path_simplify_and_extract:自創路徑演算法提取特徵點
-def svcfp(paths, min_radius=10, max_radius=50, curvature_threshold=27, rdp_epsilon=2, ifserver=1):
-    
+def svcfp(paths, min_radius=10, max_radius=50, curvature_threshold=27, rdp_epsilon=2,insert_threshold=400,insert_angle_threshold=10, ifserver=1):
     paths = np.array(paths)
     simplified_points = rdp(paths, rdp_epsilon)
     custom_print(ifserver, f"rdp 簡化後的點數: {len(simplified_points)}")
 
-    # 建立 RDP 點在原始 paths 中的對應索引
     original_indices = []
     i = 0
     check_paths_idx = 0
@@ -65,7 +63,6 @@ def svcfp(paths, min_radius=10, max_radius=50, curvature_threshold=27, rdp_epsil
 
     stdlist, max_values, angle = [], [], []
     all_feature_values = []
-    #夾角變化
 
     def cross_sign(p1, p2, p3):
         p1 = np.array(p1)
@@ -75,14 +72,17 @@ def svcfp(paths, min_radius=10, max_radius=50, curvature_threshold=27, rdp_epsil
         v2 = p3 - p2
         cross = v1[0]*v2[1] - v1[1]*v2[0]
         return np.sign(cross)
+
     length = len(paths)
 
     for i in range(len(simplified_points)):
+        if i >= len(original_indices):  # 防呆處理
+            break
+
         original_idx = original_indices[i]
         angle_change = 0
         cross_sign_change = False
-        print("!")
-        # 使用 RDP 點計算外積方向改變
+
         if i > 1 and i < len(simplified_points) - 1:
             A = simplified_points[i - 2]
             B = simplified_points[i - 1]
@@ -94,27 +94,21 @@ def svcfp(paths, min_radius=10, max_radius=50, curvature_threshold=27, rdp_epsil
 
             if sign1 != 0 and sign2 != 0 and sign1 != sign2:
                 cross_sign_change = True
-        
-        # 使用 RDP 點計算內積角度
-        print(i,len(simplified_points) - 1)
+
         if i > 0 and i < len(simplified_points) - 1:
             A = simplified_points[i - 1]
             B = simplified_points[i]
             C = simplified_points[i + 1]
-            #print(A,B,C)
             angle_change = calculate_angle_change(A, B, C)
-            #print(angle_change)
             angle.append(angle_change)
         else:
             angle.append(0)
 
-        # 以下統計是以 RDP 點為中心，從 paths 向左右固定格數擴展
         std_values = []
         max_distances = []
         for step_size in range(min_radius, max_radius):
             temp = [paths[original_idx]]
 
-            # 向右擴展
             for k in range(1, step_size + 1):
                 right_idx = original_idx + k
                 if right_idx < length:
@@ -122,7 +116,6 @@ def svcfp(paths, min_radius=10, max_radius=50, curvature_threshold=27, rdp_epsil
                 else:
                     break
 
-            # 向左擴展
             for k in range(1, step_size + 1):
                 left_idx = original_idx - k
                 if left_idx >= 0:
@@ -147,10 +140,7 @@ def svcfp(paths, min_radius=10, max_radius=50, curvature_threshold=27, rdp_epsil
             angle_weight = 0.4
             std_weight = 0.3
             dist_weight = 0.7
-            # 使用角度變化值直接作為加權參數（越大越尖銳）
-            angle_factor = 1.0 + (angle_change / 180.0)  # 將角度映射到[1, 2]範圍
-            combined_value = std_weight * mean_std + dist_weight * mean_max_dist+ angle_weight*angle_factor
-            
+            angle_factor = 1.0 + (angle_change / 180.0)
             combined_value = (
                 std_weight * mean_std + 
                 dist_weight * mean_max_dist + 
@@ -176,7 +166,6 @@ def svcfp(paths, min_radius=10, max_radius=50, curvature_threshold=27, rdp_epsil
             'angle': angle[-1]
         })
 
-    # 找出關鍵點
     candidate_breakpoints = [i for i, val in enumerate(max_values) if val > curvature_threshold]
 
     if len(simplified_points) > 0:
@@ -185,10 +174,34 @@ def svcfp(paths, min_radius=10, max_radius=50, curvature_threshold=27, rdp_epsil
         if len(simplified_points) - 1 not in candidate_breakpoints:
             candidate_breakpoints.append(len(simplified_points) - 1)
 
+    # 新增：如果任兩個節點距離超過 400，強制在其中加入中點
+    extended_breakpoints = []
+    for i in range(len(candidate_breakpoints) - 1):
+        idx1 = original_indices[candidate_breakpoints[i]]
+        idx2 = original_indices[candidate_breakpoints[i + 1]]
+        extended_breakpoints.append(candidate_breakpoints[i])
+
+        if abs(idx2 - idx1) > insert_threshold :
+            mid_idx = (idx1 + idx2) // 2
+            # 找到最接近 mid_idx 的 simplified_point
+            nearest_idx = np.argmin(np.abs(np.array(original_indices) - mid_idx))
+            A = simplified_points[nearest_idx - 1]
+            B = simplified_points[nearest_idx]
+            C = simplified_points[nearest_idx + 1]
+            angle_change = calculate_angle_change(A, B, C)
+            if angle_change < insert_angle_threshold:   
+                extended_breakpoints.append(nearest_idx)
+
+    extended_breakpoints.append(candidate_breakpoints[-1])
+    extended_breakpoints = sorted(set(extended_breakpoints))
+
     final_idx = []
     i = j = 0
-    while j < len(paths) and i < len(candidate_breakpoints):
-        cb_idx = candidate_breakpoints[i]
+    while j < len(paths) and i < len(extended_breakpoints):
+        cb_idx = extended_breakpoints[i]
+        if cb_idx >= len(simplified_points):
+            i += 1
+            continue
         if np.array_equal(paths[j], simplified_points[cb_idx]):
             final_idx.append(j)
             i += 1

@@ -67,6 +67,8 @@ def process_upload(width, height, contours, testmode):
     curvature_threshold = 41   # 曲率閾值
     min_radius = 10             # 最小搜尋半徑
     max_radius = 50             # 最大搜尋半徑
+    insert_threshold=400
+    insert_angle_threshold=10,
     # ----------------
 
     with lock:
@@ -96,6 +98,8 @@ def process_upload(width, height, contours, testmode):
                     max_radius=max_radius,
                     curvature_threshold=curvature_threshold,
                     rdp_epsilon=rdp_epsilon,
+                    insert_threshold=insert_threshold,
+                    insert_angle_threshold=insert_angle_threshold,
                     ifserver=0
                 )
 
