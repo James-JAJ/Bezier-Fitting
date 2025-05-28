@@ -20,6 +20,7 @@ __all__ = [
     "stack_image",
     "preprocess_image",
     "getContours",
+    "fill_contours_only",
     #math_tools
     "distance",
     "find_common_elements",
@@ -42,8 +43,6 @@ __all__ = [
     "perpendicular_distance",
     "rdp",
     "svcfp",
-    "filter_key_points",
-    "calculate_cross_product_direction_change",
-    "calculate_angle_change",
-    "svcfp_queue",
+    "calculate_angle_change"
+
 ]

@@ -15,7 +15,7 @@
         #main-container {
             display: flex;
             flex-direction: column;
-            width: calc(100% - 300px); /* 減去 console 的寬度 */
+            width: calc(100% - 310px); /* 減去 console 的寬度 */
             height: 95vh;
         }
         #container {
@@ -59,6 +59,7 @@
             justify-content: center; /* 水平方向對齊 */
             padding: 10px 0;
             min-height: 50px; /* 確保按鈕容器有固定最小高度 */
+            font-size: 14px;
         }
 
         .button-container button, 
@@ -70,10 +71,24 @@
         #btnsend, #downloadButton, #undo {
             display: inline-block;
         }
+        /* 手機版樣式調整 */
+        @media (orientation: portrait) {
+            body {
+                flex-direction: column;
+            }
+            #main-container {
+                width: 100%;
+                height: 60vh; /* 修改為 60% */
+            }
+            #console {
+                width: 100%;
+                height: 40vh; /* 修改為 40% */
+            }
+        }
     </style>
     <script type='text/javascript' src='/ver.js'></script>
     <script>
-        let ver = "網頁版本:V1.0.0.2";
+        let ver = "V1.0.0.5";
         let canvas, ctx, drawing = false, lastX = 0, lastY = 0 ,svg ,btnUndo,btnSend,btnDownload,consoleEl;
         let clearOnDraw = true;
         let intervalId = null;
@@ -102,7 +117,7 @@
         
         //網頁載入後執行
         window.onload = function() {
-            ver = ver + ' ; 後台版本：' + version;
+            ver = ver + '/' + version;
             document.getElementById('version').textContent = ver;
             canvas = document.getElementById("canvas");
             ctx = canvas.getContext("2d");
@@ -294,7 +309,7 @@
             // 更新點位陣列為當前筆畫（覆蓋之前的記錄）
             pointsArray = [...currentStroke];
             if (!clearOnDraw) {
-				sendToPython();
+				//sendToPython();
                 path = []; // 清除當前筆畫
             }
             toggleClearOnDraw();
@@ -440,6 +455,7 @@
         }
         
         function sendToPython() {
+        path = []; // 清除當前筆畫
         if(paths.length > 0) {
             if(intervalId !== null)
                 clearInterval(intervalId);
@@ -541,7 +557,7 @@
                 btnDownload.disabled = false; // 使能下載按鈕
                 btnUndo.disabled = false; // 使能撤銷按鈕
                 } else {
-                btnSend.disabled = true; // 禁用發送按鈕
+                btnSend.disabled = false; // 禁用發送按鈕
                 btnDownload.disabled = true; // 禁用下載按鈕
                 btnUndo.disabled = true; // 禁用撤銷按鈕
                 }
@@ -552,7 +568,7 @@
 <body>
     <div id="main-container">
         <div class="header">
-            <h1>貝茲擬和</h1>
+            <h1>貝茲擬合</h1>
         </div>
         <div id="container">
             <canvas id="canvas"></canvas>
@@ -566,11 +582,11 @@
             <button id="btnsend" onclick="sendToPython()">發送到 Python</button>
             <button id="downloadButton" disabled>下載 SVG</button>
             <button id="undo" onclick="undoline()">undo</button>
+            <label id="version"></div>
         </div>
     </div>
 
     <div id="console"></div>
-	<div id="version" style="position: fixed; bottom: 0; left: 0; font-size: 12px; margin: 5px;"></div>
     
 </body>
 </html>

@@ -3,12 +3,11 @@ import numpy as np
 import sys
 import os
 import cv2
+from PIL import Image
+
 sys.stdout.reconfigure(encoding='utf-8')
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-#print(os.getcwd())
 from utils import *
-
-
 
 # 主程式
 if __name__ == "__main__":
@@ -24,7 +23,8 @@ if __name__ == "__main__":
     min_radius = 10              # 最小搜尋半徑
     max_radius = 50              # 最大搜尋半徑
     insert_threshold = 100
-    insert_angle_threshold = 10
+    fuse_radio = 5
+    fuse_threshold = 10
     debug = True                 # 是否打印除錯信息
     ifshow = 0                   # 是否中途顯示
     # ----------------
@@ -32,98 +32,69 @@ if __name__ == "__main__":
     try:
         # 原圖 灰階圖
         original_img, gray_img = inputimg_colortogray(image_path)
-        # 前處理圖片
         preprocessed_img = preprocess_image(gray_img, scale_factor, blur_ksize, threshold_value, ifshow)
-        # 得到圖片輪廓
         contours = getContours(preprocessed_img, ifshow)
-        # 縮小座標圖片
+
         AAA = original_img.copy()
         contours = shrink_contours(contours, final_shrink_factor) 
         cv2.drawContours(AAA, contours, -1, (0, 255, 0), 1)
+        #showimg(AAA)
+
         vis_img  = original_img.copy()
-        showimg(AAA)
-        predict = np.zeros_like(vis_img.copy())  # 每次都使用同一張預測圖層來疊畫所有曲線
-        pointtotal=0
-        rdptotal=0
-        # 處理每個輪廓
+        red_layer = np.ones_like(vis_img) * 255
+        predict = np.zeros_like(vis_img.copy())
+        pointtotal = 0
+        rdptotal = 0
+
         for contour in contours:
-            if len(contour)<=20:
-                continue
             fixcontour = [sublist[0] for sublist in contour]
-            fixcontour = remove_consecutive_duplicates(fixcontour)  # 移除首尾或相鄰重複點
+            fixcontour = remove_consecutive_duplicates(fixcontour)
             rdp_points = rdp(fixcontour, epsilon=rdp_epsilon)
             print("RDP簡化後的點數:", len(rdp_points))
-            rdptotal+=len(rdp_points)
+            rdptotal += len(rdp_points)
+
             custom_points, custom_idx = svcfp(
                 fixcontour,
                 min_radius=min_radius,
                 max_radius=max_radius,
                 curvature_threshold=curvature_threshold,
                 rdp_epsilon=rdp_epsilon,
-                insert_threshold=insert_threshold, 
-                insert_angle_threshold=insert_angle_threshold,
+                insert_threshold=insert_threshold,
+                fuse_radio=fuse_radio,
+                fuse_threshold=fuse_threshold,
                 ifserver=0
             )
-            pointtotal+=len(custom_points)
-            path = fixcontour  # 用整個原始點序列來切
 
-            width, height = vis_img.shape[1], vis_img.shape[0]
-            # 繪製原始輪廓
+            pointtotal += len(custom_points)
+            path = fixcontour
             cv2.drawContours(vis_img, [contour], -1, (0, 255, 0), 1)
-            """
-            # 繪製RDP簡化後的點（紅色）
-            for point in rdp_points:
-                cv2.circle(vis_img, (point[0], point[1]), 3, (0, 0, 255), -1)
-            
-            # 繪製自訂演算法簡化後的點（藍色）
-            for point in custom_points:
-                cv2.circle(vis_img, (int(point[0]), int(point[1])), 5, (255, 0, 0), -1)
-            """
-            #print(custom_points)
+
             for i in range(len(custom_idx)):
                 print(path[custom_idx[i]])
-            #
+
             for i in range(len(custom_idx) - 1):
                 start = custom_idx[i]
                 end = custom_idx[i + 1]
                 target_curve = path[start:end]
                 target_curve = np.array([(int(p[0]), int(p[1])) for p in target_curve])
                 custom_print(0, f"Line {i}: {target_curve[0]} -> {target_curve[-1]}")
-                #print(target_curve)
-                if len(target_curve)<=10:
-                    continue
-                ctrl_pts = fit_fixed_end_bezier(target_curve)
 
-                # 🎯 畫貝茲曲線在 vis_img 上（紅線）
+                ctrl_pts = fit_least_squares_bezier(target_curve)
                 curve_points = bezier_curve_calculate(ctrl_pts)
                 vis_img = draw_curve_on_image(vis_img, curve_points, 1)
-        
-        print(pointtotal)
-        print(rdptotal)
-        #GA
-        """
-        # 🎯 改為直接在原圖上畫貝茲線與節點
-        for i in range(len(custom_idx) - 1):
-            start = custom_idx[i]
-            end = custom_idx[i + 1]
-            print(start,end)
-            target_curve = path[start:end]
-            target_curve = np.array([(int(p[0]), int(p[1])) for p in target_curve])
-            custom_print(0, f"Line {i}: {target_curve[0]} -> {target_curve[-1]}")
-            #print(target_curve)
-            ctrl_pts, max_error, mean_error = fit_and_evaluate_bezier(target_curve)
+                red_layer = draw_curve_on_image(red_layer, curve_points, 1, (0, 0, 255))
 
-            # 🎯 畫貝茲曲線在 vis_img 上（紅線）
-            curve_points = bezier_curve_calculate(ctrl_pts)
-            vis_img = draw_curve_on_image(vis_img, curve_points, 2)
-        """
+        print("Total points:", pointtotal)
+        print("Total RDP points:", rdptotal)
 
-
-        # 🎯 所有曲線畫完，再疊加到原圖上
+        showimg(vis_img, "輪廓簡化結果", 1)
         final = stack_image(vis_img.copy(), predict)
-        showimg(final,"輪廓簡化結果", 1)
-        
-        
+        showimg(final, "疊圖結果", 1)
+        # 顯示純紅線圖層
+        red_layer = fill_contours_only(red_layer)
+
+        showimg(red_layer, "紅線擬合圖", 1)
+
     except Exception as e:
         print(f"發生錯誤: {e}")
         import traceback

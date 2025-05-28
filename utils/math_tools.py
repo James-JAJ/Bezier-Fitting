@@ -191,29 +191,35 @@ def fit_fixed_end_bezier(points):
 
 def fit_least_squares_bezier(points):
     """
-    最小平方法擬合三階貝茲曲線，首尾控制點固定，求出中間兩個控制點。
-    :param points: 軌跡點列，形如 [(x0,y0), (x1,y1), ..., (xn,yn)]
-    :return: 4 個控制點 [P0, P1, P2, P3]
+    最小平方法擬合三階貝茲曲線，首尾控制點固定。
+    若不足四點，仍使用三次貝茲曲線格式回傳簡化估計。
     """
     points = np.array(points)
     n = len(points)
-    if n < 4:
-        raise ValueError("至少需要4個點進行擬合")
 
     P0 = points[0]
     P3 = points[-1]
 
-    # 參數化 t 值（均勻分佈）
+    if n < 4:
+        if n == 2:
+            # 僅起點終點，中間點取線段內部分佈
+            P1 = P0 + (P3 - P0) * 1 / 3
+            P2 = P0 + (P3 - P0) * 2 / 3
+        elif n == 3:
+            P1 = points[1]
+            P2 = points[1]
+        else:
+            raise ValueError("點數過少，無法擬合")
+
+        return [tuple(P0), tuple(P1), tuple(P2), tuple(P3)]
+
+    # 否則執行最小平方法
     t = np.linspace(0, 1, n)
-    B1 = 3 * (1 - t)**2 * t
-    B2 = 3 * (1 - t) * t**2
+    B1 = 3 * (1 - t) ** 2 * t
+    B2 = 3 * (1 - t) * t ** 2
+    C = points - np.outer((1 - t) ** 3, P0) - np.outer(t ** 3, P3)
 
-    # 應變量 Y：扣掉固定點貢獻
-    C = points - np.outer((1 - t)**3, P0) - np.outer(t**3, P3)
-
-    # 組成線性系統 A * [P1; P2] = C
-    A = np.vstack([B1, B2]).T  # n x 2
-    # 解兩個線性系統，X 和 Y 分開解
+    A = np.vstack([B1, B2]).T
     AT_A = A.T @ A
     AT_Cx = A.T @ C[:, 0]
     AT_Cy = A.T @ C[:, 1]
@@ -224,7 +230,8 @@ def fit_least_squares_bezier(points):
     P1 = np.array([Px[0], Py[0]])
     P2 = np.array([Px[1], Py[1]])
 
-    return [P0, P1, P2, P3]
+    return [tuple(P0), tuple(P1), tuple(P2), tuple(P3)]
+
 #垃圾
 def fit_fixed_end_bspline(points):
     """
