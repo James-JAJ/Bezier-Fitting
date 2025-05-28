@@ -19,12 +19,12 @@ if __name__ == "__main__":
     blur_ksize = 3               # 模糊核大小  
     threshold_value = 200        # 二質化閾值
     epsilon = 1.0                # 簡化輪廓的誤差
-    rdp_epsilon = 2             # RDP簡化閾值
-    curvature_threshold = 30    # 曲率閾值
+    rdp_epsilon = 2              # RDP簡化閾值
+    curvature_threshold = 42     # 曲率閾值
     min_radius = 10              # 最小搜尋半徑
     max_radius = 50              # 最大搜尋半徑
-    insert_threshold=100
-    insert_angle_threshold=10
+    insert_threshold = 100
+    insert_angle_threshold = 10
     debug = True                 # 是否打印除錯信息
     ifshow = 0                   # 是否中途顯示
     # ----------------
@@ -54,15 +54,14 @@ if __name__ == "__main__":
             rdp_points = rdp(fixcontour, epsilon=rdp_epsilon)
             print("RDP簡化後的點數:", len(rdp_points))
             rdptotal+=len(rdp_points)
-            custom_points, custom_idx = svcfp_queue(
+            custom_points, custom_idx = svcfp(
                 fixcontour,
-                rdp_points,
                 min_radius=min_radius,
                 max_radius=max_radius,
                 curvature_threshold=curvature_threshold,
-                insert_threshold=insert_threshold,
+                rdp_epsilon=rdp_epsilon,
+                insert_threshold=insert_threshold, 
                 insert_angle_threshold=insert_angle_threshold,
-                
                 ifserver=0
             )
             pointtotal+=len(custom_points)
