@@ -20,7 +20,8 @@ __all__ = [
     "stack_image",
     "preprocess_image",
     "getContours",
-    "fill_contours_only",
+    "generate_closed_bezier_svg",
+    "get_contour_levels",
     #math_tools
     "distance",
     "find_common_elements",

@@ -4,73 +4,101 @@ import sys
 import os
 import base64
 from .server_tools import *
+import svgwrite
+from collections import defaultdict
+
+# ================================================================
+# ✅ 影像處理相關常用工具（預處理、輪廓、疊圖、儲存、SVG輸出等）
+# ================================================================
+
 def inputimg_colortobinary(imgpath):
     """
-    輸入圖片回傳二進制檔
+    ✅ 將彩色圖片轉為二進制黑白圖（128為閾值）
+
     Args:
-        imgpath (str): 三通道彩色圖片路徑
+        imgpath (str): 圖片檔案路徑（應為三通道圖片）
+
     Returns:
-        img    (list): 二進制單通道圖片
-    Waring:
-        img 以128為閾值進行以128為閾值進行二元化
+        np.ndarray (H, W): 二值化單通道圖片，pixel ∈ {0, 255}
+
+    ⚠️ 備註：
+        - 此函數直接使用 Python list 做初始轉換，再變成 numpy 陣列
+        - 較慢，但有助於手動調整二值化規則（如需快速建議直接用 threshold）
     """
-    img = cv2.imread(imgpath, 0)  # 讀取圖片為灰階
-    # 將圖像二元化
+    img = cv2.imread(imgpath, 0)
     binary_img = [[0 if pixel < 128 else 255 for pixel in row] for row in img]
-    # 將二元化圖像轉換為numpy數組
     binary_img = np.array(binary_img, dtype=np.uint8)
-    return img
+    return binary_img
+
 def inputimg_colortogray(imgpath):
     """
-    輸入圖片回傳灰階圖片
+    ✅ 將彩色圖轉為灰階並一併回傳原圖
+
     Args:
-        orgimg       (str): 三通道彩色圖片路徑路徑
+        imgpath (str): 圖片路徑
+
     Returns:
-        img_gray    (list): 灰階單通道圖片
-        img         (list): 原圖
+        tuple:
+            img (np.ndarray): 原始彩色圖片（H, W, 3）
+            img_gray (np.ndarray): 灰階單通道圖片（H, W）
+
+    ⚠️ 若找不到圖會主動 raise FileNotFoundError
     """
     img = cv2.imread(imgpath)
     if img is None:
         raise FileNotFoundError(f"無法讀取圖像: {imgpath}")
     img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY).astype(np.uint8)
     return img, img_gray
+
 def showimg(img, name="test", ifshow=1):
     """
-    在本地端顯示圖片
+    ✅ 顯示圖片（用 OpenCV 彈窗方式）
+
     Args:
-        img     (list): 圖片
-        ifshow   (int): 是否顯示圖片
+        img (np.ndarray): 要顯示的圖片
+        name (str): 視窗名稱
+        ifshow (int): 若為 1 則顯示，0 則跳過（方便關閉預覽）
     """
-    if ifshow==1:
+    if ifshow == 1:
         cv2.imshow(name, img)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
-def save_image(image, filename,path,ifserver):
+
+def save_image(image, filename, path, ifserver):
     """
-    儲存圖片(未修改路徑)
+    ✅ 儲存圖像到指定資料夾，支援伺服器輸出回饋
+
     Args:
-        image      (list): 圖片
-        filename    (str): 檔名
+        image (np.ndarray): 要儲存的圖片
+        filename (str): 儲存檔名
+        path (str): 儲存資料夾路徑
+        ifserver (int): 控制是否在伺服器輸出訊息
     """
-    cv2.imwrite(path+"/"+filename, image)
-    custom_print(ifserver,f"Image saved: {path}")
+    cv2.imwrite(path + "/" + filename, image)
+    custom_print(ifserver, f"Image saved: {path}")
+
 def encode_image_to_base64(image):
     """
-    encode_image_to_base64:
+    ✅ 將圖像轉為 base64 字串，方便 JSON 或 HTML 傳輸
+
     Args:
-        image      (list): 圖片
+        image (np.ndarray): 圖片（灰階或彩色皆可）
+
     Returns:
-        list: 轉換後圖片
+        str: base64 編碼字串
     """
     _, buffer = cv2.imencode('.png', image)
     return base64.b64encode(buffer).decode('utf-8')
+
 def stack_image(image1, image2):
     """
-    將兩張圖片疊合
+    ✅ 將兩張圖片疊合，處理黑底遮罩
+
     Args:
-        image1, image2  (list): 雙圖片疊圖
+        image1, image2 (np.ndarray): 要合併的兩張圖（建議相同大小）
+
     Returns:
-        combined_image  (list): 疊圖後圖片
+        np.ndarray: 疊合後的新圖片
     """
     mask1 = cv2.inRange(image1, 0, 0)
     mask2 = cv2.inRange(image2, 0, 0)
@@ -80,140 +108,94 @@ def stack_image(image1, image2):
     image2_fg = cv2.bitwise_and(image2, image2, mask=mask2_inv)
     combined_image = cv2.add(image1_fg, image2_fg)
     return combined_image
+
 def preprocess_image(img_gray, scale_factor=2, blur_ksize=3, threshold_value=200, ifshow=0):
     """
-    輸入圖片回傳灰階圖片
+    ✅ 圖片預處理：放大 → 模糊 → 二值化
+
     Args:
-        img_gray           (list): 灰階圖片大小
-        scale_factor        (int): 圖片縮放倍率
-        blur_ksize          (int): 模糊核大小(必須大於1的奇數)
-        threshold_value     (int): 二值化閾值
-        ifshow             (bool): 是否顯示圖片
+        img_gray (np.ndarray): 灰階圖片
+        scale_factor (int): 放大倍數
+        blur_ksize (int): 模糊核大小（需為奇數）
+        threshold_value (int): 二值化閾值
+        ifshow (int): 是否顯示每步結果
+
     Returns:
-        binary             (list): 灰階單通道圖片
+        np.ndarray: 處理後二值圖（黑白）
+
+    💡 常用於準備輪廓提取（如 cv2.findContours）
     """
     height, width = img_gray.shape
     resized = cv2.resize(img_gray, (width * scale_factor, height * scale_factor), interpolation=cv2.INTER_CUBIC)
-    showimg( resized,"resized", ifshow)
-
+    showimg(resized, "resized", ifshow)
     blurred = cv2.GaussianBlur(resized, (blur_ksize, blur_ksize), 0)
-    showimg( blurred,"blurred", ifshow)
-
+    showimg(blurred, "blurred", ifshow)
     _, binary = cv2.threshold(blurred, threshold_value, 255, cv2.THRESH_BINARY_INV)
-    showimg( binary, "binary",ifshow)
-
+    showimg(binary, "binary", ifshow)
     return binary
+
 def getContours(binary_img, ifshow=0):
     """
-    取得灰階圖片並取得輪廓
+    ✅ 取得輪廓（含可視化）
+
     Args:
-        binary_img         (list): 灰階圖片
-        ifshow             (bool): 是否顯示圖片
+        binary_img (np.ndarray): 二值圖（黑底白字）
+        ifshow (int): 是否顯示輪廓圖
+
+    Returns:
+        list[np.ndarray]: OpenCV 輪廓格式（每條 contour 為點陣列）
     """
     contours, hierarchy = cv2.findContours(binary_img, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
     vis_img = cv2.cvtColor(binary_img.copy(), cv2.COLOR_GRAY2BGR)
     cv2.drawContours(vis_img, contours, -1, (0, 255, 0), 1)
-    showimg(vis_img,"contours", ifshow)
+    showimg(vis_img, "contours", ifshow)
     return contours
 
+def generate_closed_bezier_svg(bezier_ctrl_points, width, height, filename="closed_bezier.svg"):
+    """
+    ✅ 生成不填色的 SVG（使用 M...C 貝茲格式）
 
-def fill_contours_only(binary_img):
-    """
-    偵測圖片白色區域並根據層次關係填充：
-    1. 偵測白色區域的層次關係
-    2. 基數層次(1,3,5...)填黑色，偶數層次(0,2,4...)填白色
-    3. 輸出白底黑線圖
-    4. 保留原本非白色的線條
-    
     Args:
-        input_img: 輸入圖像
-    Returns:
-        result_img: 處理後的白底黑線圖像
+        bezier_ctrl_points (list[list[tuple]]): 所有貝茲控制點
+        width, height (int): SVG 畫布大小
+        filename (str): 輸出檔名
+
+    備註：
+        - 每段貝茲需為四點格式（P0, P1, P2, P3）
+        - 不會閉合，只畫線條，適合進一步嵌套處理
     """
-    # 轉換為灰階
-    if len(binary_img.shape) == 3:
-        gray = cv2.cvtColor(binary_img, cv2.COLOR_BGR2GRAY)
-    else:
-        gray = binary_img.copy()
-    
-    # 二值化處理，分離白色區域和非白色區域
-    _, binary = cv2.threshold(gray, 240, 255, cv2.THRESH_BINARY)  # 白色區域為255
-    
-    # 保存原始的非白色線條（黑色和其他顏色的線條）
-    original_lines = (gray < 240).astype(np.uint8) * 255  # 非白色區域變為白色標記
-    
-    # 對白色區域進行輪廓檢測
-    # 需要反轉來找白色區域的邊界
-    white_areas = binary.copy()
-    
-    # 形態學處理，清理白色區域
-    kernel = np.ones((3,3), np.uint8)
-    white_areas = cv2.morphologyEx(white_areas, cv2.MORPH_CLOSE, kernel)
-    white_areas = cv2.morphologyEx(white_areas, cv2.MORPH_OPEN, kernel)
-    
-    # 反轉圖像來檢測白色區域的輪廓
-    inverted = 255 - white_areas
-    
-    # 找輪廓，獲取層次結構
-    contours, hierarchy = cv2.findContours(inverted, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-    
-    # 創建結果圖像，初始為白色背景
-    result = np.ones_like(gray) * 255
-    
-    if hierarchy is not None and len(contours) > 0:
-        hierarchy = hierarchy[0]  # 展開hierarchy維度
-        
-        # 計算每個輪廓的嵌套深度
-        def calculate_nesting_depth(contour_idx):
-            """計算輪廓的嵌套深度，最外層為0"""
-            depth = 0
-            parent_idx = hierarchy[contour_idx][3]  # 父輪廓索引
-            while parent_idx != -1:
-                depth += 1
-                parent_idx = hierarchy[parent_idx][3]
-            return depth
-        
-        # 為每個輪廓計算深度和面積
-        contour_info = []
-        for i in range(len(contours)):
-            depth = calculate_nesting_depth(i)
-            area = cv2.contourArea(contours[i])
-            contour_info.append((i, depth, area))
-            print(f"白色區域輪廓 {i}: 深度={depth}, 面積={area:.1f}")
-        
-        # 按深度分組
-        depth_groups = {}
-        for contour_idx, depth, area in contour_info:
-            if depth not in depth_groups:
-                depth_groups[depth] = []
-            depth_groups[depth].append((contour_idx, area))
-        
-        print(f"檢測到的白色區域深度層級: {sorted(depth_groups.keys())}")
-        
-        # 按深度從深到淺處理
-        for depth in sorted(depth_groups.keys(), reverse=True):
-            contours_at_depth = depth_groups[depth]
-            
-            # 基數層次(1,3,5...)填黑色，偶數層次(0,2,4...)保持白色
-            if depth % 2 == 1:  # 基數層次
-                for contour_idx, area in contours_at_depth:
-                    if area > 10:  # 過濾太小的區域
-                        cv2.fillPoly(result, [contours[contour_idx]], 0)  # 填黑色
-                        print(f"填充深度 {depth} 的白色區域 {contour_idx} (面積: {area:.1f}) - 黑色")
-            else:  # 偶數層次
-                for contour_idx, area in contours_at_depth:
-                    if area > 10:
-                        cv2.fillPoly(result, [contours[contour_idx]], 255)  # 保持白色
-                        print(f"保持深度 {depth} 的白色區域 {contour_idx} (面積: {area:.1f}) - 白色")
-    
-    # 將原始的非白色線條疊加到結果上（變成黑色線條）
-    # 找出原始圖像中非白色的像素位置
-    non_white_mask = (gray < 240)  # 非白色區域的遮罩
-    result[non_white_mask] = 0  # 將非白色區域在結果圖中設為黑色
-    
-    print("處理完成：基數層次填黑色，偶數層次保持白色，原始線條保留為黑色")
-    
-    return result
+    dwg = svgwrite.Drawing(filename, profile='full', size=(width, height))
+    for ctrl_pts in bezier_ctrl_points:
+        P0, P1, P2, P3 = ctrl_pts
+        d = f"M {P0[0]} {P0[1]} C {P1[0]} {P1[1]}, {P2[0]} {P2[1]}, {P3[0]} {P3[1]}"
+        path = dwg.path(d=d, fill='none', stroke='black', stroke_width=1)
+        dwg.add(path)
+    dwg.save()
+    print(f"✅ SVG 輸出完成: {filename}")
+
+def get_contour_levels(hierarchy):
+    """
+    ✅ 根據 hierarchy 決定每個輪廓的嵌套層級
+
+    Args:
+        hierarchy (np.ndarray): OpenCV findContours 的 hierarchy 結果（通常為 (1, N, 4)）
+
+    Returns:
+        list[int]: 每個輪廓對應的層級（0 為最外層）
+
+    備註：
+        - parent = h[3]；向上回推可得當前深度
+        - 可用於 SVG 填色規則（偶數白，奇數空白）
+    """
+    levels = []
+    for h in hierarchy:
+        level = 0
+        parent = h[3]
+        while parent != -1:
+            level += 1
+            parent = hierarchy[parent][3]
+        levels.append(level)
+    return levels
 
 
 

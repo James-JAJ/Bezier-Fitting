@@ -1,15 +1,35 @@
 import numpy as np
 from scipy.interpolate import make_interp_spline
 
-#distance:距離差
 def distance(p1, p2):
+    """ 計算兩點間的歐幾里得距離
+    Args:
+        p1, p2 (array-like): 兩個點的座標
+        Datatype: 可以是 list, tuple 或 numpy array
+    Returns:
+        float: 兩點間的距離
+    ⚠️ 備註:
+    - 支援任意維度的點座標計算
+    - 內部會自動轉換為 numpy array 進行計算
+    """
     return np.linalg.norm(np.array(p1) - np.array(p2))
-#math
-#find_common_elements:找二陣列陣列相同元素
+
+
 def find_common_elements(arr1, arr2):
+    """ 找出兩個陣列中的相同元素
+    Args:
+        arr1, arr2 (array-like): 兩個要比較的陣列
+    Returns:
+        numpy.ndarray: 包含相同元素的陣列
+    ⚠️ 備註:
+    - 使用 numpy.intersect1d，會自動去重並排序
+    - 回傳的是 numpy array 格式
+    """
     return np.intersect1d(arr1, arr2)
-#remove_duplicates:剔除重複元素
+
+
 def remove_duplicates(arr):
+    
     seen = set()
     result = []
     for item in arr:
@@ -17,8 +37,22 @@ def remove_duplicates(arr):
             seen.add(item)
             result.append(item)
     return result
-#remove_close_points:在閾值內刪除相近元跳過首尾點，回傳一包含首尾二點新列表
+
+
 def remove_close_points(path, points, first_point, last_point, threshold):
+    """ 在路徑中移除相近的點，但保留首尾點
+    Args:
+        path (list): 完整路徑點列表
+        points (list): 要篩選的點列表
+        first_point, last_point (tuple): 首尾點座標
+        threshold (int): 距離閾值（以路徑索引為單位）
+    Returns:
+        list: 篩選後的點列表，包含首尾點
+    ⚠️ 備註:
+    - threshold 是以路徑中點的索引距離為單位，非歐幾里得距離
+    - 會自動處理倒數第二點與終點過近的情況
+    - 首尾點一定會被保留
+    """
     if not points:
         return []
     
@@ -42,8 +76,21 @@ def remove_close_points(path, points, first_point, last_point, threshold):
     
     filtered_points.append(last_point)  # 保留尾點
     return filtered_points
-#add_mid_points:在兩點間添加中點
+
+
 def add_mid_points(path, rivise_points, threshold):
+    """ 在兩點間距離過大時添加中間點
+    Args:
+        path (list): 完整路徑點列表
+        rivise_points (list): 要修正的點列表（會被直接修改）
+        threshold (int): 距離閾值，超過此值會插入中間點
+    Returns:
+        list: 添加中間點後的點列表
+    ⚠️ 備註:
+    - 會直接修改傳入的 rivise_points 列表
+    - 使用等分法在兩點間插入適當數量的中間點
+    - 最終會按照原路徑順序重新排序
+    """
     # 預先建立 path 中點的索引對應表，加快查找速度
     path_index = {point: i for i, point in enumerate(path)}
 
@@ -65,16 +112,33 @@ def add_mid_points(path, rivise_points, threshold):
     rivise_points.sort(key=lambda p: path_index[p])  # 按原本 path 順序排列
 
     return rivise_points
-#mean_min_dist:計算兩個集合之間的平均最小距離
+
+
 def mean_min_dist(A, B):
+        """ 計算兩個點集合之間的平均最小距離
+        Args:
+            A, B (numpy.ndarray): 兩個點集合，形狀為 (n, d)
+        Returns:
+            float: 平均最小距離
+        ⚠️ 備註:
+        - 對於集合 B 中的每個點，找到 A 中最近點的距離
+        - 回傳所有這些最小距離的平均值
+        - A 和 B 應該是相同維度的點集合
+        """
         return np.mean([np.min(np.linalg.norm(A - b, axis=1)) for b in B])
-#interpolate_points:使用線性插值來補足缺失的點，使路徑更加平滑
+
+
 def interpolate_points(points, step=1):
-    """
-    使用線性插值來補足缺失的點，使路徑更加平滑
-    :param points: 原始離散點列表 [(x1, y1), (x2, y2), ...]
-    :param step: 插值間距，數值越小補的點越多
-    :return: 平滑後的點列表
+    """ 使用線性插值來補足缺失的點，使路徑更加平滑
+    Args:
+        points (list of tuple): 原始離散點列表 [(x1, y1), (x2, y2), ...]
+        step (float): 插值間距，數值越小補的點越多，預設為 1
+    Returns:
+        list of tuple: 平滑後的點列表
+    ⚠️ 備註:
+    - 會根據兩點間的距離自動決定插值數量
+    - 回傳的座標會轉換為整數格式
+    - step 參數控制插值密度，建議根據影像解析度調整
     """
     new_points = []
     
@@ -94,12 +158,33 @@ def interpolate_points(points, step=1):
             new_points.append((new_x, new_y))
     
     return new_points
+
+
 def make_circular_index(idx, length):
-    """ 環狀索引處理 """
+    """ 環狀索引處理函數
+    Args:
+        idx (int): 原始索引
+        length (int): 陣列長度
+    Returns:
+        int: 處理後的有效索引
+    ⚠️ 備註:
+    - 用於處理環狀結構，當索引超出範圍時會自動回到開頭
+    - 支援負數索引
+    """
     return idx % length
 
+
 def remove_consecutive_duplicates(array):
-    """ 移除連續重複項 """
+    """ 移除陣列中連續重複的項目
+    Args:
+        array (list): 輸入陣列
+    Returns:
+        list: 移除連續重複項後的陣列
+    ⚠️ 備註:
+    - 只移除連續重複的項目，非連續的重複項會保留
+    - 如果首尾元素相同，會移除尾部元素（適用於封閉路徑）
+    - 使用 numpy.array_equal 進行比較，適用於多維陣列
+    """
     if len(array) < 2:
         return array
     result = [array[0]]
@@ -110,14 +195,39 @@ def remove_consecutive_duplicates(array):
     if len(result) > 1 and np.array_equal(result[0], result[-1]):
         result.pop()
     return result
+
+
 def shrink_contours(contours, shrink_factor):
-    """將輪廓座標縮小"""
+    """ 將輪廓座標按比例縮小
+    Args:
+        contours (list): 輪廓列表，每個輪廓為座標陣列
+        shrink_factor (float): 縮放係數
+    Returns:
+        list: 縮放後的輪廓列表
+    ⚠️ 備註:
+    - 所有座標會乘以 shrink_factor 後轉為 int32 格式
+    - 適用於 OpenCV 輪廓格式
+    """
     shrunk = []
     for contour in contours:
         new_contour = np.array(contour * shrink_factor, dtype=np.int32)
         shrunk.append(new_contour)
     return shrunk
+
+
 def find_simplified_indices(paths, simplified_points):
+    """ 在路徑中找到簡化點的對應索引
+    Args:
+        paths (list): 完整路徑點列表
+        simplified_points (list): 簡化後的點列表
+    Returns:
+        list: 對應的索引列表
+    Raises:
+        ValueError: 當簡化點在路徑中找不到時
+    ⚠️ 備註:
+    - 使用精確匹配查找，要求點座標完全相同
+    - 如果找不到對應點會拋出異常
+    """
     indices = []
     for sp in simplified_points:
         found = False
@@ -129,7 +239,19 @@ def find_simplified_indices(paths, simplified_points):
         if not found:
             raise ValueError(f"Point {sp} not found in paths.")
     return indices
+
+
 def convert_pairs_to_tuples(obj):
+    """ 將巢狀列表中的數字對轉換為元組
+    Args:
+        obj: 任意巢狀結構的物件
+    Returns:
+        轉換後的物件，數字對會變成元組
+    ⚠️ 備註:
+    - 遞迴處理巢狀結構
+    - 只轉換長度為 2 且全為數字的列表
+    - 其他格式的資料保持不變
+    """
     if isinstance(obj, list):
         # 如果是長度為2的純數字list → 轉成tuple
         if len(obj) == 2 and all(isinstance(i, (int, float)) for i in obj):
@@ -137,7 +259,19 @@ def convert_pairs_to_tuples(obj):
         # 否則遞迴處理內部
         return [convert_pairs_to_tuples(item) for item in obj]
     return obj  # 若不是list就原樣返回
+
+
 def chord_length_parameterize(points: np.ndarray) -> np.ndarray:
+    """ 使用弦長參數化方法為點序列生成參數
+    Args:
+        points (numpy.ndarray): 點座標陣列，形狀為 (n, 2)
+    Returns:
+        numpy.ndarray: 參數化後的 t 值，範圍 [0, 1]
+    ⚠️ 備註:
+    - 基於相鄰點間的累積距離進行參數化
+    - 如果所有點重合，會使用均勻分布作為備案
+    - 常用於曲線擬合的前處理步驟
+    """
     distances = np.linalg.norm(np.diff(points, axis=0), axis=1)
     cumulative = np.insert(np.cumsum(distances), 0, 0)
 
@@ -149,10 +283,18 @@ def chord_length_parameterize(points: np.ndarray) -> np.ndarray:
     
     return t
 
+
 def fit_fixed_end_bezier(points):
-    """
-    給定首尾點 P0, P3 與中間曲線點序列 points，擬合中間兩個控制點 P1, P2。
-    返回 4 個控制點的 ndarray。
+    """ 給定首尾點，擬合中間兩個控制點的三次貝茲曲線
+    Args:
+        points (list): 目標擬合的點序列
+    Returns:
+        list of tuple: 四個控制點 [(P0), (P1), (P2), (P3)] 或 None
+    ⚠️ 備註:
+    - 首尾控制點固定為輸入點的首尾點
+    - 使用最小二乘法求解中間兩個控制點
+    - 點數不足時會回傳 None
+    - 使用弦長參數化提升擬合品質
     """
     n = len(points)
     if n < 2:
@@ -189,10 +331,18 @@ def fit_fixed_end_bezier(points):
     #print([P0,P1,P2,P3])
     return [tuple(P0), tuple(P1), tuple(P2), tuple(P3)]
 
+
 def fit_least_squares_bezier(points):
-    """
-    最小平方法擬合三階貝茲曲線，首尾控制點固定。
-    若不足四點，仍使用三次貝茲曲線格式回傳簡化估計。
+    """ 最小平方法擬合三階貝茲曲線，首尾控制點固定
+    Args:
+        points (list): 目標擬合的點序列
+    Returns:
+        list of tuple: 四個控制點 [(P0), (P1), (P2), (P3)]
+    ⚠️ 備註:
+    - 若點數不足 4 點，會使用簡化方法估計中間控制點
+    - 2 點時：中間控制點取線段的 1/3 和 2/3 處
+    - 3 點時：兩個中間控制點都設為中間點
+    - 4 點以上：使用完整的最小二乘法
     """
     points = np.array(points)
     n = len(points)
@@ -232,10 +382,16 @@ def fit_least_squares_bezier(points):
 
     return [tuple(P0), tuple(P1), tuple(P2), tuple(P3)]
 
-#垃圾
 def fit_fixed_end_bspline(points):
-    """
-    使用三次 B-spline 擬合點列，固定首尾點，回傳 4 組控制點
+    """ 使用三次 B-spline 擬合點列，固定首尾點
+    Args:
+        points (list): 目標擬合的點序列
+    Returns:
+        list of tuple: 四個控制點 [(P0), (P1), (P2), (P3)]
+    ⚠️ 備註:
+    - 點數不足 4 時會退回到平線（所有控制點相同）
+    - 使用 scipy 的 make_interp_spline 進行樣條擬合
+    - 發生異常時會退回到平線處理
     """
     points = np.array(points)
     n = len(points)
