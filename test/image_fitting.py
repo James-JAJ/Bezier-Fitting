@@ -91,9 +91,10 @@ if __name__ == "__main__":
         final = stack_image(vis_img.copy(), predict)
         showimg(final, "疊圖結果", 1)
         # 顯示純紅線圖層
-        red_layer = fill_contours_only(red_layer)
+        cv2.imwrite("red_layer.png", red_layer)
 
         showimg(red_layer, "紅線擬合圖", 1)
+        
 
     except Exception as e:
         print(f"發生錯誤: {e}")
