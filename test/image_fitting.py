@@ -73,8 +73,12 @@ if __name__ == "__main__":
                 start_j = np.array(total_ctrl_pts[j][0])
                 if np.linalg.norm(end_i - start_j) <= 2:
                     total_ctrl_pts[j][0] = tuple(end_i)
-
-        generate_closed_bezier_svg(total_ctrl_pts, original_img.shape[1], original_img.shape[0])
+        img = np.zeros((original_img.shape[0], original_img.shape[1],3), dtype=np.uint8)
+        for i  in range(len(total_ctrl_pts)):
+            draw_curve_on_image(img,total_ctrl_pts[i])
+        img = fill_small_contours(img,area_threshold=3000)
+        showimg(img)
+        #generate_closed_bezier_svg(total_ctrl_pts, original_img.shape[1], original_img.shape[0])
 
     except Exception as e:
         print(f"發生錯誤: {e}")

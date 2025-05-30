@@ -22,6 +22,7 @@ __all__ = [
     "getContours",
     "generate_closed_bezier_svg",
     "get_contour_levels",
+    "fill_small_contours",
     #math_tools
     "distance",
     "find_common_elements",

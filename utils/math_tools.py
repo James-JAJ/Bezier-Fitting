@@ -13,8 +13,6 @@ def distance(p1, p2):
     - 內部會自動轉換為 numpy array 進行計算
     """
     return np.linalg.norm(np.array(p1) - np.array(p2))
-
-
 def find_common_elements(arr1, arr2):
     """ 找出兩個陣列中的相同元素
     Args:
@@ -26,8 +24,6 @@ def find_common_elements(arr1, arr2):
     - 回傳的是 numpy array 格式
     """
     return np.intersect1d(arr1, arr2)
-
-
 def remove_duplicates(arr):
     
     seen = set()
@@ -37,8 +33,6 @@ def remove_duplicates(arr):
             seen.add(item)
             result.append(item)
     return result
-
-
 def remove_close_points(path, points, first_point, last_point, threshold):
     """ 在路徑中移除相近的點，但保留首尾點
     Args:
@@ -76,8 +70,6 @@ def remove_close_points(path, points, first_point, last_point, threshold):
     
     filtered_points.append(last_point)  # 保留尾點
     return filtered_points
-
-
 def add_mid_points(path, rivise_points, threshold):
     """ 在兩點間距離過大時添加中間點
     Args:
@@ -112,8 +104,6 @@ def add_mid_points(path, rivise_points, threshold):
     rivise_points.sort(key=lambda p: path_index[p])  # 按原本 path 順序排列
 
     return rivise_points
-
-
 def mean_min_dist(A, B):
         """ 計算兩個點集合之間的平均最小距離
         Args:
@@ -126,8 +116,6 @@ def mean_min_dist(A, B):
         - A 和 B 應該是相同維度的點集合
         """
         return np.mean([np.min(np.linalg.norm(A - b, axis=1)) for b in B])
-
-
 def interpolate_points(points, step=1):
     """ 使用線性插值來補足缺失的點，使路徑更加平滑
     Args:
@@ -158,8 +146,6 @@ def interpolate_points(points, step=1):
             new_points.append((new_x, new_y))
     
     return new_points
-
-
 def make_circular_index(idx, length):
     """ 環狀索引處理函數
     Args:
@@ -172,8 +158,6 @@ def make_circular_index(idx, length):
     - 支援負數索引
     """
     return idx % length
-
-
 def remove_consecutive_duplicates(array):
     """ 移除陣列中連續重複的項目
     Args:
@@ -195,8 +179,6 @@ def remove_consecutive_duplicates(array):
     if len(result) > 1 and np.array_equal(result[0], result[-1]):
         result.pop()
     return result
-
-
 def shrink_contours(contours, shrink_factor):
     """ 將輪廓座標按比例縮小
     Args:
@@ -213,8 +195,6 @@ def shrink_contours(contours, shrink_factor):
         new_contour = np.array(contour * shrink_factor, dtype=np.int32)
         shrunk.append(new_contour)
     return shrunk
-
-
 def find_simplified_indices(paths, simplified_points):
     """ 在路徑中找到簡化點的對應索引
     Args:
@@ -239,8 +219,6 @@ def find_simplified_indices(paths, simplified_points):
         if not found:
             raise ValueError(f"Point {sp} not found in paths.")
     return indices
-
-
 def convert_pairs_to_tuples(obj):
     """ 將巢狀列表中的數字對轉換為元組
     Args:
@@ -259,8 +237,6 @@ def convert_pairs_to_tuples(obj):
         # 否則遞迴處理內部
         return [convert_pairs_to_tuples(item) for item in obj]
     return obj  # 若不是list就原樣返回
-
-
 def chord_length_parameterize(points: np.ndarray) -> np.ndarray:
     """ 使用弦長參數化方法為點序列生成參數
     Args:
@@ -282,8 +258,6 @@ def chord_length_parameterize(points: np.ndarray) -> np.ndarray:
         t = cumulative / cumulative[-1]  # Normalize to [0, 1]
     
     return t
-
-
 def fit_fixed_end_bezier(points):
     """ 給定首尾點，擬合中間兩個控制點的三次貝茲曲線
     Args:
@@ -330,8 +304,6 @@ def fit_fixed_end_bezier(points):
 
     #print([P0,P1,P2,P3])
     return [tuple(P0), tuple(P1), tuple(P2), tuple(P3)]
-
-
 def fit_least_squares_bezier(points):
     """ 最小平方法擬合三階貝茲曲線，首尾控制點固定
     Args:
@@ -381,7 +353,6 @@ def fit_least_squares_bezier(points):
     P2 = np.array([Px[1], Py[1]])
 
     return [tuple(P0), tuple(P1), tuple(P2), tuple(P3)]
-
 def fit_fixed_end_bspline(points):
     """ 使用三次 B-spline 擬合點列，固定首尾點
     Args:
@@ -421,3 +392,37 @@ def fit_fixed_end_bspline(points):
         return [tuple(P0)] * 4
 
     return [tuple(P0), tuple(P1), tuple(P2), tuple(P3)]
+def nss_interpolate_path(path, num_points=500):
+    """使用線性插值強制重取 num_points 點（含起點與終點）"""
+    path = np.array(path, dtype=np.float32)
+
+    # 累積距離做參數化
+    distances = np.cumsum([0] + [np.linalg.norm(path[i] - path[i - 1]) for i in range(1, len(path))])
+    total_length = distances[-1]
+    if total_length == 0:
+        return np.tile(path[0], (num_points, 1))  # 所有點相同
+
+    distances /= total_length  # 正規化到 0~1
+    target_positions = np.linspace(0, 1, num_points)
+
+    # 線性插值 x/y 分開處理
+    x_interp = np.interp(target_positions, distances, path[:, 0])
+    y_interp = np.interp(target_positions, distances, path[:, 1])
+    return np.stack([x_interp, y_interp], axis=1)
+def nss_normalized_shape_similarity(path1, path2, num_points=500):
+    path1 = nss_interpolate_path(path1, num_points)
+    path2 = nss_interpolate_path(path2, num_points)
+
+    def normalize_path(path):
+        center = np.mean(path, axis=0)
+        centered = path - center
+        scale = np.max(np.linalg.norm(centered, axis=1))
+        return centered / scale if scale > 0 else centered
+
+    path1 = normalize_path(path1)
+    path2 = normalize_path(path2)
+
+    distances = np.linalg.norm(path1 - path2, axis=1)
+    mean_distance = np.mean(distances)
+    similarity_score = 1 - mean_distance
+    return similarity_score

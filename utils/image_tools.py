@@ -197,6 +197,31 @@ def get_contour_levels(hierarchy):
         levels.append(level)
     return levels
 
+def fill_small_contours(img, area_threshold=3000):
+    """
+    填充小輪廓
+    """
+    # 若為灰階就不再轉換
+    if len(img.shape) == 3 and img.shape[2] == 3:
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    else:
+        gray = img.copy()
+
+    _, thresh = cv2.threshold(gray, 200, 255, cv2.THRESH_BINARY_INV)
+    contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
+    result = img.copy()
+    for i, contour in enumerate(contours):
+        area = cv2.contourArea(contour)
+        if area < area_threshold:
+            cv2.drawContours(result, [contour], -1, (0, 0, 255), thickness=cv2.FILLED)
+
+    if len(img.shape) == 3 and img.shape[2] == 3:
+        line_mask = cv2.inRange(img, (0, 0, 100), (100, 100, 255))
+        result[line_mask > 0] = [0, 0, 255]
+
+    return result
+
 
 
 
