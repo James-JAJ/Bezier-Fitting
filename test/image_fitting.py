@@ -10,10 +10,38 @@ sys.stdout.reconfigure(encoding='utf-8')
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils import *
 
+def interpolate_path(path, num_points=500):
+    path = np.array(path, dtype=np.float32)
+    distances = np.cumsum([0] + [np.linalg.norm(path[i] - path[i - 1]) for i in range(1, len(path))])
+    total_length = distances[-1]
+    if total_length == 0:
+        return np.tile(path[0], (num_points, 1))
+    distances /= total_length
+    target_positions = np.linspace(0, 1, num_points)
+    x_interp = np.interp(target_positions, distances, path[:, 0])
+    y_interp = np.interp(target_positions, distances, path[:, 1])
+    return np.stack([x_interp, y_interp], axis=1)
+
+def normalized_shape_similarity(path1, path2, num_points=500):
+    path1 = interpolate_path(path1, num_points)
+    path2 = interpolate_path(path2, num_points)
+
+    def normalize_path(path):
+        center = np.mean(path, axis=0)
+        centered = path - center
+        scale = np.max(np.linalg.norm(centered, axis=1))
+        return centered / scale if scale > 0 else centered
+
+    path1 = normalize_path(path1)
+    path2 = normalize_path(path2)
+
+    distances = np.linalg.norm(path1 - path2, axis=1)
+    mean_distance = np.mean(distances)
+    return 1 - mean_distance
 
 
 if __name__ == "__main__":
-    image_path = 'test/B.png'
+    image_path = 'test/A.png'
     scale_factor = 2
     final_shrink_factor = 0.5
     blur_ksize = 3
@@ -40,9 +68,16 @@ if __name__ == "__main__":
         hierarchy_levels = []
         contour_levels = get_contour_levels(hierarchy)
 
+        raw_points = []       # 原始輪廓點
+        fitted_points = []    # 擬合貝茲曲線點
+
+        img = np.zeros((original_img.shape[0], original_img.shape[1], 3), dtype=np.uint8)
+
         for contour_idx, contour in enumerate(contours):
             fixcontour = [sublist[0] for sublist in contour]
             fixcontour = remove_consecutive_duplicates(fixcontour)
+            raw_points.extend(fixcontour)
+
             custom_points, custom_idx = svcfp(
                 fixcontour,
                 min_radius=min_radius,
@@ -61,10 +96,15 @@ if __name__ == "__main__":
                 target_curve = path[start:end]
                 target_curve = np.array([(int(p[0]), int(p[1])) for p in target_curve])
                 ctrl_pts = fit_least_squares_bezier(target_curve)
+
+                curve_pts = bezier_curve_calculate(ctrl_pts)
+                fitted_points.extend(curve_pts)
+                draw_curve_on_image(img, curve_pts)
+
                 total_ctrl_pts.append(ctrl_pts)
                 hierarchy_levels.append(contour_levels[contour_idx])
 
-        # 強制首尾補齊閉合曲線
+        # 閉合修正
         for i in range(len(total_ctrl_pts)):
             end_i = np.array(total_ctrl_pts[i][3])
             for j in range(len(total_ctrl_pts)):
@@ -73,12 +113,13 @@ if __name__ == "__main__":
                 start_j = np.array(total_ctrl_pts[j][0])
                 if np.linalg.norm(end_i - start_j) <= 2:
                     total_ctrl_pts[j][0] = tuple(end_i)
-        img = np.zeros((original_img.shape[0], original_img.shape[1],3), dtype=np.uint8)
-        for i  in range(len(total_ctrl_pts)):
-            draw_curve_on_image(img,total_ctrl_pts[i])
-        img = fill_small_contours(img,area_threshold=3000)
+
+        img = fill_small_contours(img, area_threshold=3000)
         showimg(img)
-        #generate_closed_bezier_svg(total_ctrl_pts, original_img.shape[1], original_img.shape[0])
+
+        # ⚠️ 進行形狀相似度比對
+        similarity_value = normalized_shape_similarity(raw_points, fitted_points)
+        print("🟡 輪廓與貝茲曲線相似度分數：", similarity_value)
 
     except Exception as e:
         print(f"發生錯誤: {e}")
