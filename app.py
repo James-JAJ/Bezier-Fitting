@@ -121,8 +121,7 @@ def process_upload(width, height, contours, testmode):
                     custom_print(f"Line {i}: {target_curve[0]} -> {target_curve[-1]}")
 
                     ctrl_pts = fit_fixed_end_bezier(target_curve)
-                    print(target_curve[-1])
-                    print(ctrl_pts[-1])
+
 
                     result.append(ctrl_pts)
                     if not testmode:
@@ -141,9 +140,7 @@ def process_upload(width, height, contours, testmode):
                 for point in rdp_points:
                     final = cv2.circle(final, (int(point[0]), int(point[1])), 5, (255, 0, 0), -1)
                 for point in custom_points:
-                    final = cv2.circle(final, (int(point[0]), int(point[1])), 5, (0, 255, 0), 2)
-                
-                
+                    final = cv2.circle(final, (int(point[0]), int(point[1])), 5, (0, 255, 0), 2)    
                 end_time = time.time()
                 custom_print(f"✅ 處理完成！共花費 {end_time - start_time:.2f} 秒")
                 image_base64.append(encode_image_to_base64(final))
@@ -152,22 +149,76 @@ def process_upload(width, height, contours, testmode):
             import traceback
             error_message = traceback.format_exc()
             custom_print("❌ process_upload 發生錯誤：", error_message)
+def process_upload_image(image_data, width, height):
+    # 這是處理 Base64 編碼圖片的函數
+    custom_print(f"處理 Canvas 圖像: width={width}, height={height}, image_data_len={len(image_data) if image_data else 0}")
+    try:
+        # 移除 Data URL 的前綴 (例如: "data:image/png;base64,")
+        if "base64," in image_data:
+            image_data = image_data.split("base64,")[1]
 
+        # 解碼 Base64 字串
+        decoded_image = encode_image_to_base64(image_data)
+        #Eric :以下將 decoded_image 依照 image_fitting.py  處理，並比照 process_upload() 回復 
+        
+
+        # 將解碼後的數據轉換為 OpenCV 圖片格式
+        #np_arr = np.frombuffer(decoded_image, np.uint8)
+        #img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+
+        if image_data is None:
+            custom_print("圖片解碼失敗")
+            return False # 或拋出錯誤
+
+        # 在這裡可以對 img 進行進一步的處理，例如儲存、分析等
+        #custom_print(f"成功解碼圖片，圖像形狀: {img.shape}")
+        # 範例：儲存圖片
+        # cv2.imwrite("uploaded_canvas_image_from_combined_endpoint.png", img)
+        return True
+
+    except Exception as e:
+        custom_print(f"處理圖片上傳錯誤: {e}")
+        return False
+       
                 
 
 @app.route('/upload', methods=['POST'])
 def upload():
     testmode = request.args.get('testmode')
-    width, height = request.json.get("width"), request.json.get("height")
-    #上傳 軌跡的模式
+    width = request.json.get("width")
+    height = request.json.get("height")
+    
+    # 嘗試獲取繪圖點數據
     paths = request.json.get("points")
-    #custom_print("Received paths:", paths)
-    #開始擬和程式執行緒(原本單執行續方式 /message 無法即時傳送過程資訊
-    thread = threading.Thread(target=process_upload,args=(width,height,paths,testmode=='true'))
-    thread.start()
-    #回應上傳成功
-    return jsonify({"message": "Received successfully\n"})
+    
+    # 嘗試獲取 Base64 編碼的圖片數據
+    image_data = request.json.get("image")
 
+    thread = None
+    response_message = "Received successfully\n"
+
+    if paths is not None and len(paths) > 0:
+        # 處理繪圖點模式
+        custom_print("Received paths:", paths)
+        thread = threading.Thread(target=process_upload, args=(width, height, paths, testmode == 'true'))
+        
+    elif image_data is not None and len(image_data) > 0:
+        # 處理 Base64 編碼圖片模式
+        custom_print("Received image data (Base64).")
+        # 將 image_data 和 width, height 傳遞給 process_upload_image
+        thread = threading.Thread(target=process_upload_image, args=(image_data, width, height))
+        
+    else:
+        # 如果既沒有 points 也沒有 image 數據
+        response_message = "No valid data (points or image) received.\n"
+        custom_print(response_message)
+        return jsonify({"message": response_message}), 400 # 返回 400 Bad Request
+
+    if thread:
+        thread.start()
+
+    # 回應上傳成功
+    return jsonify({"message": response_message})
 if __name__ == '__main__':
     global model
     #CNN

@@ -6,11 +6,9 @@ import base64
 from .server_tools import *
 import svgwrite
 from collections import defaultdict
-
 # ================================================================
 # ✅ 影像處理相關常用工具（預處理、輪廓、疊圖、儲存、SVG輸出等）
 # ================================================================
-
 def inputimg_colortobinary(imgpath):
     """
     ✅ 將彩色圖片轉為二進制黑白圖（128為閾值）
@@ -29,7 +27,6 @@ def inputimg_colortobinary(imgpath):
     binary_img = [[0 if pixel < 128 else 255 for pixel in row] for row in img]
     binary_img = np.array(binary_img, dtype=np.uint8)
     return binary_img
-
 def inputimg_colortogray(imgpath):
     """
     ✅ 將彩色圖轉為灰階並一併回傳原圖
@@ -49,7 +46,6 @@ def inputimg_colortogray(imgpath):
         raise FileNotFoundError(f"無法讀取圖像: {imgpath}")
     img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY).astype(np.uint8)
     return img, img_gray
-
 def showimg(img, name="test", ifshow=1):
     """
     ✅ 顯示圖片（用 OpenCV 彈窗方式）
@@ -63,7 +59,6 @@ def showimg(img, name="test", ifshow=1):
         cv2.imshow(name, img)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
-
 def save_image(image, filename, path, ifserver):
     """
     ✅ 儲存圖像到指定資料夾，支援伺服器輸出回饋
@@ -76,7 +71,6 @@ def save_image(image, filename, path, ifserver):
     """
     cv2.imwrite(path + "/" + filename, image)
     custom_print(ifserver, f"Image saved: {path}")
-
 def encode_image_to_base64(image):
     """
     ✅ 將圖像轉為 base64 字串，方便 JSON 或 HTML 傳輸
@@ -89,7 +83,6 @@ def encode_image_to_base64(image):
     """
     _, buffer = cv2.imencode('.png', image)
     return base64.b64encode(buffer).decode('utf-8')
-
 def stack_image(image1, image2):
     """
     ✅ 將兩張圖片疊合，處理黑底遮罩
@@ -108,7 +101,6 @@ def stack_image(image1, image2):
     image2_fg = cv2.bitwise_and(image2, image2, mask=mask2_inv)
     combined_image = cv2.add(image1_fg, image2_fg)
     return combined_image
-
 def preprocess_image(img_gray, scale_factor=2, blur_ksize=3, threshold_value=200, ifshow=0):
     """
     ✅ 圖片預處理：放大 → 模糊 → 二值化
@@ -133,7 +125,6 @@ def preprocess_image(img_gray, scale_factor=2, blur_ksize=3, threshold_value=200
     _, binary = cv2.threshold(blurred, threshold_value, 255, cv2.THRESH_BINARY_INV)
     showimg(binary, "binary", ifshow)
     return binary
-
 def getContours(binary_img, ifshow=0):
     """
     ✅ 取得輪廓（含可視化）
@@ -150,7 +141,6 @@ def getContours(binary_img, ifshow=0):
     cv2.drawContours(vis_img, contours, -1, (0, 255, 0), 1)
     showimg(vis_img, "contours", ifshow)
     return contours
-
 def generate_closed_bezier_svg(bezier_ctrl_points, width, height, filename="closed_bezier.svg"):
     """
     ✅ 生成不填色的 SVG（使用 M...C 貝茲格式）
@@ -172,7 +162,6 @@ def generate_closed_bezier_svg(bezier_ctrl_points, width, height, filename="clos
         dwg.add(path)
     dwg.save()
     print(f"✅ SVG 輸出完成: {filename}")
-
 def get_contour_levels(hierarchy):
     """
     ✅ 根據 hierarchy 決定每個輪廓的嵌套層級
@@ -196,7 +185,6 @@ def get_contour_levels(hierarchy):
             parent = hierarchy[parent][3]
         levels.append(level)
     return levels
-
 def fill_small_contours(img, area_threshold=3000):
     """
     填充小輪廓
