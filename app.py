@@ -83,7 +83,7 @@ def process_upload(width, height, contours, testmode):
 
             start_time = time.time()
             custom_print("Receiving contours...")
-
+            
             rdptotal = 0
             pointtotal = 0
             result = []
@@ -134,6 +134,14 @@ def process_upload(width, height, contours, testmode):
                         custom_print(f"⚠️ Line {i} 沒產生曲線點")
                     elif np.count_nonzero(cv2.cvtColor(final.copy(), cv2.COLOR_BGR2GRAY)) == 0:
                         custom_print(f"⚠️ Line {i} 畫完仍為全黑圖")
+                        
+            #存檔用
+            orig = np.zeros((height, width), dtype=np.uint8)
+            for contour in contours():
+                for i in contour():
+                    orig[i[0]][i[1]]=255
+            cv2.imwrite("image/"+start_time+"orig.png",final)
+            cv2.imwrite("image/"+start_time+"fitting.png",final)
 
             if testmode:
                 # 畫綠色特徵點
@@ -144,6 +152,7 @@ def process_upload(width, height, contours, testmode):
                 end_time = time.time()
                 custom_print(f"✅ 處理完成！共花費 {end_time - start_time:.2f} 秒")
                 image_base64.append(encode_image_to_base64(final))
+            
 
         except Exception as e:
             import traceback
