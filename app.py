@@ -128,20 +128,32 @@ def process_upload(width, height, contours, testmode):
                         beizer_array.append(ctrl_pts)
 
                     curve_points = bezier_curve_calculate(ctrl_pts)
-                    final = draw_curve_on_image(final, curve_points, thickness=2, color=(0, 0, 255))  # 紅色線條
+                    final = draw_curve_on_image(final, curve_points, thickness=1, color=(0, 0, 255))  # 紅色線條
 
                     if len(curve_points) == 0:
                         custom_print(f"⚠️ Line {i} 沒產生曲線點")
                     elif np.count_nonzero(cv2.cvtColor(final.copy(), cv2.COLOR_BGR2GRAY)) == 0:
                         custom_print(f"⚠️ Line {i} 畫完仍為全黑圖")
                         
-            #存檔用
-            orig = np.zeros((height, width), dtype=np.uint8)
-            for contour in contours():
-                for i in contour():
-                    orig[i[0]][i[1]]=255
-            cv2.imwrite("image/"+start_time+"orig.png",final)
-            cv2.imwrite("image/"+start_time+"fitting.png",final)
+             #存檔用
+            try:
+                save_dir = os.path.join(os.getcwd(), "img")
+                os.makedirs(save_dir, exist_ok=True)
+                orig = np.zeros((height, width), dtype=np.uint8)
+                for contour in contours:
+                    contour = interpolate_points(contour)
+                    for i in contour:
+                        y, x = int(i[0]), int(i[1])
+                        orig[x][y] = 255
+                orig = 255 - orig  # ← 反白處理
+                cv2.imwrite(os.path.join(save_dir, f"{start_time,len(custom_points)}_orig.png"), orig)
+                
+                temp = cv2.cvtColor(final, cv2.COLOR_BGR2GRAY)
+                cv2.imwrite(os.path.join(save_dir, f"{start_time,len(custom_points)}_fitting.png"), temp)
+            except Exception as e:
+                custom_print(f"❌ 存檔時發生錯誤: {e}")
+
+
 
             if testmode:
                 # 畫綠色特徵點
@@ -152,8 +164,8 @@ def process_upload(width, height, contours, testmode):
                 end_time = time.time()
                 custom_print(f"✅ 處理完成！共花費 {end_time - start_time:.2f} 秒")
                 image_base64.append(encode_image_to_base64(final))
-            
-
+                
+           
         except Exception as e:
             import traceback
             error_message = traceback.format_exc()
