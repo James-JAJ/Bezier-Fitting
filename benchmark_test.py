@@ -22,7 +22,39 @@ def apply_perturbation(image: np.ndarray, level: float) -> np.ndarray:
         image = gaussian_filter(image, sigma=level * 2)
     return image
 
-# ==== 2. 實驗流程主體：支援多指標 ====
+# ==== 2. FRSS 輪廓比對函數（合併所有輪廓點）====
+def frss_shape_similarity(points1, points2, num_points=100):
+    from scipy.spatial import KDTree
+
+    def normalize(path):
+        path = np.array(path, dtype=np.float32)
+        center = np.mean(path, axis=0)
+        centered = path - center
+        scale = np.max(np.linalg.norm(centered, axis=1))
+        return centered / scale if scale > 0 else centered
+
+    def resample(path, num=100):
+        if len(path) < 2:
+            return np.tile(path[0], (num, 1))
+        dists = np.cumsum([0] + [np.linalg.norm(path[i] - path[i - 1]) for i in range(1, len(path))])
+        dists /= dists[-1] if dists[-1] != 0 else 1
+        target = np.linspace(0, 1, num)
+        x = np.interp(target, dists, path[:, 0])
+        y = np.interp(target, dists, path[:, 1])
+        return np.stack([x, y], axis=1)
+
+    A = normalize(resample(points1, num_points))
+    B = normalize(resample(points2, num_points))
+
+    tree_A = KDTree(A)
+    tree_B = KDTree(B)
+    dists1, _ = tree_B.query(A)
+    dists2, _ = tree_A.query(B)
+
+    avg_dist = (np.mean(dists1) + np.mean(dists2)) / 2
+    return 1 / (1 + avg_dist)
+
+# ==== 3. 實驗流程主體（輪廓合併後比對）====
 def evaluate_images_multiple_metrics(
     folder_path: str,
     metrics: Dict[str, Callable[[np.ndarray, np.ndarray], float]],
@@ -37,15 +69,32 @@ def evaluate_images_multiple_metrics(
         base = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
         base = cv2.resize(base, (256, 256))
 
+        base_blur = cv2.GaussianBlur(base, (3, 3), 0)
+        _, base_thresh = cv2.threshold(base_blur, 127, 255, cv2.THRESH_BINARY_INV)
+        contours_base, _ = cv2.findContours(base_thresh, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
+        contour_list_base = [cnt.squeeze() for cnt in contours_base if cnt.shape[0] >= 5]
+        contour_base = np.concatenate(contour_list_base, axis=0) if contour_list_base else np.zeros((1, 2), dtype=np.float32)
+
         for name, metric in metrics.items():
             scores = []
             for level in levels:
                 distorted = apply_perturbation(base.copy(), level)
-                score = metric(base, distorted)
+
+                if name == 'FRSS':
+                    blur = cv2.GaussianBlur(distorted, (3, 3), 0)
+                    _, threshed = cv2.threshold(blur, 127, 255, cv2.THRESH_BINARY_INV)
+                    contours_dist, _ = cv2.findContours(threshed, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
+                    contour_list_dist = [cnt.squeeze() for cnt in contours_dist if cnt.shape[0] >= 5]
+                    contour_dist = np.concatenate(contour_list_dist, axis=0) if contour_list_dist else np.zeros((1, 2), dtype=np.float32)
+
+                    score = frss_shape_similarity(contour_base, contour_dist)
+                else:
+                    score = metric(base, distorted)
+
                 scores.append(score)
             results[name].append(scores)
 
-    # ==== 3. 畫圖 ====
+    # ==== 4. 畫圖 ====
     plt.figure(figsize=(10, 5), dpi=100)
     for name, score_matrix in results.items():
         score_array = np.array(score_matrix)
@@ -64,7 +113,7 @@ def evaluate_images_multiple_metrics(
     plt.tight_layout()
     plt.show()
 
-# ==== 4. 在這裡放入你要測試的指標 ====
+# ==== 5. 指標函數 ====
 def ssim_similarity(img1: np.ndarray, img2: np.ndarray) -> float:
     return ssim(img1, img2)
 
@@ -85,19 +134,15 @@ def psnr_similarity(img1: np.ndarray, img2: np.ndarray) -> float:
     psnr = 20 * np.log10(PIXEL_MAX / np.sqrt(mse))
     return psnr / 100  # normalize to [0, 1] approx
 
-# ==== 5. 執行 ====
+# ==== 6. 執行 ====
 if __name__ == '__main__':
-    folder = "benchmarkimg"  # 改成你的圖像資料夾
-    font = "benchmarkimg/NotoSansTC-VariableFont_wght.ttf"  # 使用者字體
+    folder = "benchmarkimg"  # 圖像資料夾
+    font = "benchmarkimg/NotoSansTC-VariableFont_wght.ttf"  # 字體檔
     metrics_dict = {
         'MSE': mse_similarity,
         'RMSE': rmse_similarity,
         'PSNR': psnr_similarity,
         'SSIM': ssim_similarity,
         'FRSS': frss_shape_similarity,
-        
-        
-        
     }
     evaluate_images_multiple_metrics(folder, metrics=metrics_dict, font_path=font)
-

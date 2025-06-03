@@ -68,7 +68,7 @@ def process_upload(width, height, contours, testmode):
     min_radius = 10             # 最小搜尋半徑
     max_radius = 50             # 最大搜尋半徑
     insert_threshold=300
-    fuse_radio = 5
+    fuse_radio = 8
     fuse_threshold=10
     # ----------------
 
@@ -111,8 +111,10 @@ def process_upload(width, height, contours, testmode):
                 for i in range(len(custom_idx) - 1):
                     start = custom_idx[i]
                     end = custom_idx[i + 1]
-                    target_curve = path[start:end]
+                    target_curve = path[start:end+1]
+                    print(start,end)
                     target_curve = np.array([(int(p[0]), int(p[1])) for p in target_curve])
+                    print(target_curve[0],target_curve[-1])
 
                     if len(target_curve) == 0:
                         custom_print(f"⚠️ Line {i} 空曲線跳過")
@@ -129,13 +131,15 @@ def process_upload(width, height, contours, testmode):
 
                     curve_points = bezier_curve_calculate(ctrl_pts)
                     final = draw_curve_on_image(final, curve_points, thickness=1, color=(0, 0, 255))  # 紅色線條
-
+                    
                     if len(curve_points) == 0:
                         custom_print(f"⚠️ Line {i} 沒產生曲線點")
                     elif np.count_nonzero(cv2.cvtColor(final.copy(), cv2.COLOR_BGR2GRAY)) == 0:
                         custom_print(f"⚠️ Line {i} 畫完仍為全黑圖")
                         
-             #存檔用
+            
+                """
+                 #存檔用
             try:
                 save_dir = os.path.join(os.getcwd(), "img")
                 os.makedirs(save_dir, exist_ok=True)
@@ -143,15 +147,24 @@ def process_upload(width, height, contours, testmode):
                 for contour in contours:
                     contour = interpolate_points(contour)
                     for i in contour:
-                        y, x = int(i[0]), int(i[1])
-                        orig[x][y] = 255
+                        x, y = int(i[0]), int(i[1])
+                        orig[y][x] = 255
                 orig = 255 - orig  # ← 反白處理
-                cv2.imwrite(os.path.join(save_dir, f"{start_time,len(custom_points)}_orig.png"), orig)
-                
                 temp = cv2.cvtColor(final, cv2.COLOR_BGR2GRAY)
-                cv2.imwrite(os.path.join(save_dir, f"{start_time,len(custom_points)}_fitting.png"), temp)
+
+                origlist, _ = cv2.findContours(orig, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+                fittinglist,_ = cv2.findContours(temp, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+                
+                value = frss_shape_similarity(origlist,fittinglist)
+                
+                print(value)
+                cv2.imwrite(os.path.join(save_dir, f"{value,len(custom_points)}_orig.png"), orig)
+                
+                cv2.imwrite(os.path.join(save_dir, f"{value,len(custom_points)}_fitting.png"), temp)
             except Exception as e:
                 custom_print(f"❌ 存檔時發生錯誤: {e}")
+                """
+            
 
 
 
@@ -169,7 +182,8 @@ def process_upload(width, height, contours, testmode):
         except Exception as e:
             import traceback
             error_message = traceback.format_exc()
-            custom_print("❌ process_upload 發生錯誤：", error_message)
+            print("❌ process_upload 發生錯誤：", error_message)
+
 def process_upload_image(image_data, width, height):
     # 這是處理 Base64 編碼圖片的函數
     custom_print(f"處理 Canvas 圖像: width={width}, height={height}, image_data_len={len(image_data) if image_data else 0}")

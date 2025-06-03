@@ -464,7 +464,8 @@ def gss_shape_similarity(points1, points2):
     mtx1, mtx2, disparity = procrustes(A, B)
     return disparity
 
-def frss_shape_similarity(points1, points2, num_points=100):
+def frss_shape_similarity(contours1, contours2, num_points=100):
+    """將兩組輪廓列表合併後比較形狀相似度"""
     def normalize(path):
         path = np.array(path, dtype=np.float32)
         center = np.mean(path, axis=0)
@@ -473,24 +474,29 @@ def frss_shape_similarity(points1, points2, num_points=100):
         return centered / scale if scale > 0 else centered
 
     def resample(path, num=100):
-        dists = np.cumsum([0] + [np.linalg.norm(path[i] - path[i - 1]) for i in range(1, len(path))])
-        if dists[-1] == 0:
+        if len(path) < 2:
             return np.tile(path[0], (num, 1))
-        dists /= dists[-1]
+        dists = np.cumsum([0] + [np.linalg.norm(path[i] - path[i - 1]) for i in range(1, len(path))])
+        dists /= dists[-1] if dists[-1] != 0 else 1
         target = np.linspace(0, 1, num)
         x = np.interp(target, dists, path[:, 0])
         y = np.interp(target, dists, path[:, 1])
         return np.stack([x, y], axis=1)
 
+    # 過濾有效輪廓並合併為一組點
+    points1 = np.vstack([c.squeeze() for c in contours1 if c.shape[0] >= 5]) if contours1 else np.zeros((1, 2))
+    points2 = np.vstack([c.squeeze() for c in contours2 if c.shape[0] >= 5]) if contours2 else np.zeros((1, 2))
+
+    if len(points1) < 2 or len(points2) < 2:
+        return 0.0
+
     A = normalize(resample(points1, num_points))
     B = normalize(resample(points2, num_points))
 
-    # 最近鄰距離 A→B 與 B→A
     tree_A = KDTree(A)
     tree_B = KDTree(B)
     dists1, _ = tree_B.query(A)
     dists2, _ = tree_A.query(B)
 
     avg_dist = (np.mean(dists1) + np.mean(dists2)) / 2
-    score = 1 / (1 + avg_dist)  # 越像越接近 1
-    return score
+    return 1 / (1 + avg_dist)
