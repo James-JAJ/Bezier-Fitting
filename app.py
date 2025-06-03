@@ -138,32 +138,38 @@ def process_upload(width, height, contours, testmode):
                         custom_print(f"⚠️ Line {i} 畫完仍為全黑圖")
                         
             
-                """
+                
                  #存檔用
             try:
                 save_dir = os.path.join(os.getcwd(), "img")
                 os.makedirs(save_dir, exist_ok=True)
+
                 orig = np.zeros((height, width), dtype=np.uint8)
                 for contour in contours:
                     contour = interpolate_points(contour)
                     for i in contour:
-                        x, y = int(i[0]), int(i[1])
-                        orig[y][x] = 255
-                orig = 255 - orig  # ← 反白處理
+                        x, y = map(int, i)
+                        if 0 <= x < width and 0 <= y < height:
+                            orig[y][x] = 255
+
+                orig = 255 - orig  # 反白處理（白底黑線）
+
                 temp = cv2.cvtColor(final, cv2.COLOR_BGR2GRAY)
+                _, temp = cv2.threshold(temp, 200, 255, cv2.THRESH_BINARY_INV)
 
                 origlist, _ = cv2.findContours(orig, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
-                fittinglist,_ = cv2.findContours(temp, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
-                
-                value = frss_shape_similarity(origlist,fittinglist)
-                
+                fittinglist, _ = cv2.findContours(temp, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+
+                value = frss_shape_similarity(origlist, fittinglist)
                 print(value)
-                cv2.imwrite(os.path.join(save_dir, f"{value,len(custom_points)}_orig.png"), orig)
-                
-                cv2.imwrite(os.path.join(save_dir, f"{value,len(custom_points)}_fitting.png"), temp)
+
+                cv2.imwrite(os.path.join(save_dir, f"{value:.3f}_{len(custom_points)}_orig.png"), orig)
+                cv2.imwrite(os.path.join(save_dir, f"{value:.3f}_{len(custom_points)}_fitting.png"), temp)
+
             except Exception as e:
                 custom_print(f"❌ 存檔時發生錯誤: {e}")
-                """
+
+                
             
 
 

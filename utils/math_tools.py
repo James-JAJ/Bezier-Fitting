@@ -5,6 +5,8 @@ from scipy.spatial import procrustes
 from scipy.spatial import KDTree
 import cv2
 from utils import *
+import math
+
 
 def distance(p1, p2):
     """ 計算兩點間的歐幾里得距離
@@ -465,8 +467,16 @@ def gss_shape_similarity(points1, points2):
     mtx1, mtx2, disparity = procrustes(A, B)
     return disparity
 
+
+
 def frss_shape_similarity(contours1, contours2, num_points=100):
-    from scipy.spatial import KDTree
+    """
+    加強版相似度指標，加入以下懲罰機制：
+    - 平均距離（均值 + Hausdorff）
+    - 中心點差
+    - 方向轉角差
+    - 封閉拓撲差異（是否為封閉圖形）
+    """
 
     def normalize(path):
         path = np.array(path, dtype=np.float32)
@@ -485,11 +495,18 @@ def frss_shape_similarity(contours1, contours2, num_points=100):
         y = np.interp(target, dists, path[:, 1])
         return np.stack([x, y], axis=1)
 
-    valid1 = [c.squeeze() for c in contours1 if c.shape[0] >= 5]
-    valid2 = [c.squeeze() for c in contours2 if c.shape[0] >= 5]
-    points1 = np.vstack(valid1) if valid1 else np.zeros((1, 2))
-    points2 = np.vstack(valid2) if valid2 else np.zeros((1, 2))
+    def is_closed(path):
+        return np.linalg.norm(path[0] - path[-1]) < 5.0
 
+    def average_angle_diff(path1, path2):
+        angles1 = [math.atan2(path1[i+1][1] - path1[i][1], path1[i+1][0] - path1[i][0]) for i in range(len(path1)-1)]
+        angles2 = [math.atan2(path2[i+1][1] - path2[i][1], path2[i+1][0] - path2[i][0]) for i in range(len(path2)-1)]
+        diff = [min(abs(a1 - a2), 2 * np.pi - abs(a1 - a2)) for a1, a2 in zip(angles1, angles2)]
+        return np.mean(diff)
+
+    # 合併有效輪廓
+    points1 = np.vstack([c.squeeze() for c in contours1 if c.shape[0] >= 5]) if contours1 else np.zeros((1, 2))
+    points2 = np.vstack([c.squeeze() for c in contours2 if c.shape[0] >= 5]) if contours2 else np.zeros((1, 2))
     if len(points1) < 2 or len(points2) < 2:
         return 0.0
 
@@ -502,4 +519,15 @@ def frss_shape_similarity(contours1, contours2, num_points=100):
     dists2, _ = tree_A.query(B)
 
     avg_dist = (np.mean(dists1) + np.mean(dists2)) / 2
-    return 1 / (1 + avg_dist)
+    hausdorff_dist = max(np.max(dists1), np.max(dists2))
+
+    # 額外懲罰項
+    center_diff = np.linalg.norm(np.mean(A, axis=0) - np.mean(B, axis=0))
+    angle_diff = average_angle_diff(A, B)
+    closed_penalty = 0 if is_closed(A) == is_closed(B) else 0.3
+
+    # 綜合分數計算：基於距離、角度差、中心差、拓撲差
+    score = 1 / (1 + 0.5 * avg_dist + 0.2 * hausdorff_dist + 
+                 0.2 * center_diff + 0.3 * angle_diff + closed_penalty)
+
+    return float(np.clip(score, 0, 1))
