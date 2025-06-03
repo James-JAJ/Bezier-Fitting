@@ -3,7 +3,8 @@ from scipy.interpolate import make_interp_spline
 import svgwrite
 from scipy.spatial import procrustes
 from scipy.spatial import KDTree
-
+import cv2
+from utils import *
 
 def distance(p1, p2):
     """ 計算兩點間的歐幾里得距離
@@ -465,7 +466,8 @@ def gss_shape_similarity(points1, points2):
     return disparity
 
 def frss_shape_similarity(contours1, contours2, num_points=100):
-    """將兩組輪廓列表合併後比較形狀相似度"""
+    from scipy.spatial import KDTree
+
     def normalize(path):
         path = np.array(path, dtype=np.float32)
         center = np.mean(path, axis=0)
@@ -483,9 +485,10 @@ def frss_shape_similarity(contours1, contours2, num_points=100):
         y = np.interp(target, dists, path[:, 1])
         return np.stack([x, y], axis=1)
 
-    # 過濾有效輪廓並合併為一組點
-    points1 = np.vstack([c.squeeze() for c in contours1 if c.shape[0] >= 5]) if contours1 else np.zeros((1, 2))
-    points2 = np.vstack([c.squeeze() for c in contours2 if c.shape[0] >= 5]) if contours2 else np.zeros((1, 2))
+    valid1 = [c.squeeze() for c in contours1 if c.shape[0] >= 5]
+    valid2 = [c.squeeze() for c in contours2 if c.shape[0] >= 5]
+    points1 = np.vstack(valid1) if valid1 else np.zeros((1, 2))
+    points2 = np.vstack(valid2) if valid2 else np.zeros((1, 2))
 
     if len(points1) < 2 or len(points2) < 2:
         return 0.0
