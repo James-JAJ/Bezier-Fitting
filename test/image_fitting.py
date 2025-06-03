@@ -41,7 +41,7 @@ def normalized_shape_similarity(path1, path2, num_points=500):
 
 
 if __name__ == "__main__":
-    image_path = 'test/A.png'
+    image_path = 'test/B.png'
     scale_factor = 2
     final_shrink_factor = 0.5
     blur_ksize = 3
@@ -113,7 +113,7 @@ if __name__ == "__main__":
                 start_j = np.array(total_ctrl_pts[j][0])
                 if np.linalg.norm(end_i - start_j) <= 2:
                     total_ctrl_pts[j][0] = tuple(end_i)
-
+        print(total_ctrl_pts)
         img = fill_small_contours(img, area_threshold=3000)
         showimg(img)
 

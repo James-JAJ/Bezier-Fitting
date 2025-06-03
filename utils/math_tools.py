@@ -1,5 +1,9 @@
 import numpy as np
 from scipy.interpolate import make_interp_spline
+import svgwrite
+from scipy.spatial import procrustes
+from scipy.spatial import KDTree
+
 
 def distance(p1, p2):
     """ 計算兩點間的歐幾里得距離
@@ -392,6 +396,7 @@ def fit_fixed_end_bspline(points):
         return [tuple(P0)] * 4
 
     return [tuple(P0), tuple(P1), tuple(P2), tuple(P3)]
+
 def nss_interpolate_path(path, num_points=500):
     """使用線性插值強制重取 num_points 點（含起點與終點）"""
     path = np.array(path, dtype=np.float32)
@@ -426,3 +431,66 @@ def nss_normalized_shape_similarity(path1, path2, num_points=500):
     mean_distance = np.mean(distances)
     similarity_score = 1 - mean_distance
     return similarity_score
+
+def gss_shape_similarity(points1, points2):
+    """
+    幾何不變形狀相似度 (GSS)
+    比較兩組輪廓點集（無序），不受平移、旋轉與尺度影響
+    回傳值越小越相似（0為完全一致）
+
+    Parameters:
+        points1, points2: np.ndarray (Nx2)
+            輪廓點集合
+
+    Returns:
+        float: Procrustes 損失（越小越相似）
+    """
+    # 點數需相同，否則先內插統一長度
+    def resample(path, num_points=100):
+        path = np.array(path, dtype=np.float32)
+        dists = np.cumsum([0] + [np.linalg.norm(path[i] - path[i-1]) for i in range(1, len(path))])
+        if dists[-1] == 0:
+            return np.tile(path[0], (num_points, 1))
+        dists /= dists[-1]
+        target = np.linspace(0, 1, num_points)
+        x = np.interp(target, dists, path[:, 0])
+        y = np.interp(target, dists, path[:, 1])
+        return np.stack([x, y], axis=1)
+
+    A = resample(points1)
+    B = resample(points2)
+
+    # procrustes自帶去平移、尺度與旋轉後計算平均誤差
+    mtx1, mtx2, disparity = procrustes(A, B)
+    return disparity
+
+def frss_shape_similarity(points1, points2, num_points=100):
+    def normalize(path):
+        path = np.array(path, dtype=np.float32)
+        center = np.mean(path, axis=0)
+        centered = path - center
+        scale = np.max(np.linalg.norm(centered, axis=1))
+        return centered / scale if scale > 0 else centered
+
+    def resample(path, num=100):
+        dists = np.cumsum([0] + [np.linalg.norm(path[i] - path[i - 1]) for i in range(1, len(path))])
+        if dists[-1] == 0:
+            return np.tile(path[0], (num, 1))
+        dists /= dists[-1]
+        target = np.linspace(0, 1, num)
+        x = np.interp(target, dists, path[:, 0])
+        y = np.interp(target, dists, path[:, 1])
+        return np.stack([x, y], axis=1)
+
+    A = normalize(resample(points1, num_points))
+    B = normalize(resample(points2, num_points))
+
+    # 最近鄰距離 A→B 與 B→A
+    tree_A = KDTree(A)
+    tree_B = KDTree(B)
+    dists1, _ = tree_B.query(A)
+    dists2, _ = tree_A.query(B)
+
+    avg_dist = (np.mean(dists1) + np.mean(dists2)) / 2
+    score = 1 / (1 + avg_dist)  # 越像越接近 1
+    return score
