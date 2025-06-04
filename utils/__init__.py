@@ -38,10 +38,11 @@ __all__ = [
     "fit_fixed_end_bezier",
     "fit_least_squares_bezier",
     "fit_fixed_end_bspline",
-    "nss_interpolate_path",
+    "gss_global_structure_similarity",
     "nss_normalized_shape_similarity",
-    "gss_shape_similarity",
-    "frss_shape_similarity",
+    "lss_local_shape_structure",
+    "scs_shape_similarity",
+
 
 
     #server_tools

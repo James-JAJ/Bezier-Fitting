@@ -22,37 +22,40 @@ def apply_perturbation(image: np.ndarray, level: float) -> np.ndarray:
         image = gaussian_filter(image, sigma=level * 2)
     return image
 
-# ==== 2. FRSS 輪廓比對函數（合併所有輪廓點）====
-def frss_shape_similarity(points1, points2, num_points=100):
-    from scipy.spatial import KDTree
+from scipy.spatial import cKDTree
+import numpy as np
 
-    def normalize(path):
-        path = np.array(path, dtype=np.float32)
-        center = np.mean(path, axis=0)
-        centered = path - center
-        scale = np.max(np.linalg.norm(centered, axis=1))
-        return centered / scale if scale > 0 else centered
+def scs_shape_similarity(contours1, contours2):
+    """
+    SCS（Symmetric Contour Similarity）：
+    接收兩組輪廓列表（OpenCV contours），計算其點雲之平均對稱最短距離的相似度（越大越相似）。
+    """
 
-    def resample(path, num=100):
-        if len(path) < 2:
-            return np.tile(path[0], (num, 1))
-        dists = np.cumsum([0] + [np.linalg.norm(path[i] - path[i - 1]) for i in range(1, len(path))])
-        dists /= dists[-1] if dists[-1] != 0 else 1
-        target = np.linspace(0, 1, num)
-        x = np.interp(target, dists, path[:, 0])
-        y = np.interp(target, dists, path[:, 1])
-        return np.stack([x, y], axis=1)
+    def contours_to_points(contours):
+        if contours is None or len(contours) == 0:
+            return np.zeros((1, 2), dtype=np.float32)
 
-    A = normalize(resample(points1, num_points))
-    B = normalize(resample(points2, num_points))
+        valid = [c.reshape(-1, 2) for c in contours if c.shape[0] >= 5]
+        if len(valid) == 0:
+            return np.zeros((1, 2), dtype=np.float32)
 
-    tree_A = KDTree(A)
-    tree_B = KDTree(B)
-    dists1, _ = tree_B.query(A)
-    dists2, _ = tree_A.query(B)
+        return np.concatenate(valid, axis=0)
 
-    avg_dist = (np.mean(dists1) + np.mean(dists2)) / 2
-    return 1 / (1 + avg_dist)
+    def mean_min_distance(A, B):
+        tree = cKDTree(A)
+        dists, _ = tree.query(B)
+        return np.mean(dists)
+
+    def symmetric_similarity(A, B):
+        if len(A) < 2 or len(B) < 2:
+            return 0.0
+        avg_dist = (mean_min_distance(A, B) + mean_min_distance(B, A)) / 2
+        return 1 / (1 + avg_dist)
+
+    points1 = contours_to_points(contours1)
+    points2 = contours_to_points(contours2)
+
+    return float(symmetric_similarity(points1, points2))
 
 # ==== 3. 實驗流程主體（輪廓合併後比對）====
 def evaluate_images_multiple_metrics(
@@ -87,7 +90,7 @@ def evaluate_images_multiple_metrics(
                     contour_list_dist = [cnt.squeeze() for cnt in contours_dist if cnt.shape[0] >= 5]
                     contour_dist = np.concatenate(contour_list_dist, axis=0) if contour_list_dist else np.zeros((1, 2), dtype=np.float32)
 
-                    score = frss_shape_similarity(contour_base, contour_dist)
+                    score = scs_shape_similarity(contour_base, contour_dist)
                 else:
                     score = metric(base, distorted)
 
@@ -143,6 +146,6 @@ if __name__ == '__main__':
         'RMSE': rmse_similarity,
         'PSNR': psnr_similarity,
         'SSIM': ssim_similarity,
-        'FRSS': frss_shape_similarity,
+        'FRSS': scs_shape_similarity,
     }
     evaluate_images_multiple_metrics(folder, metrics=metrics_dict, font_path=font)

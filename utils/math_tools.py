@@ -6,7 +6,7 @@ from scipy.spatial import KDTree
 import cv2
 from utils import *
 import math
-
+from scipy.spatial import cKDTree
 
 def distance(p1, p2):
     """ 計算兩點間的歐幾里得距離
@@ -400,134 +400,102 @@ def fit_fixed_end_bspline(points):
 
     return [tuple(P0), tuple(P1), tuple(P2), tuple(P3)]
 
-def nss_interpolate_path(path, num_points=500):
-    """使用線性插值強制重取 num_points 點（含起點與終點）"""
-    path = np.array(path, dtype=np.float32)
-
-    # 累積距離做參數化
-    distances = np.cumsum([0] + [np.linalg.norm(path[i] - path[i - 1]) for i in range(1, len(path))])
-    total_length = distances[-1]
-    if total_length == 0:
-        return np.tile(path[0], (num_points, 1))  # 所有點相同
-
-    distances /= total_length  # 正規化到 0~1
-    target_positions = np.linspace(0, 1, num_points)
-
-    # 線性插值 x/y 分開處理
-    x_interp = np.interp(target_positions, distances, path[:, 0])
-    y_interp = np.interp(target_positions, distances, path[:, 1])
-    return np.stack([x_interp, y_interp], axis=1)
-def nss_normalized_shape_similarity(path1, path2, num_points=500):
-    path1 = nss_interpolate_path(path1, num_points)
-    path2 = nss_interpolate_path(path2, num_points)
-
-    def normalize_path(path):
-        center = np.mean(path, axis=0)
-        centered = path - center
-        scale = np.max(np.linalg.norm(centered, axis=1))
-        return centered / scale if scale > 0 else centered
-
-    path1 = normalize_path(path1)
-    path2 = normalize_path(path2)
-
-    distances = np.linalg.norm(path1 - path2, axis=1)
-    mean_distance = np.mean(distances)
-    similarity_score = 1 - mean_distance
-    return similarity_score
-
-def gss_shape_similarity(points1, points2):
-    """
-    幾何不變形狀相似度 (GSS)
-    比較兩組輪廓點集（無序），不受平移、旋轉與尺度影響
-    回傳值越小越相似（0為完全一致）
-
-    Parameters:
-        points1, points2: np.ndarray (Nx2)
-            輪廓點集合
-
-    Returns:
-        float: Procrustes 損失（越小越相似）
-    """
-    # 點數需相同，否則先內插統一長度
-    def resample(path, num_points=100):
-        path = np.array(path, dtype=np.float32)
+def gss_global_structure_similarity(contours1, contours2, num_points=100):
+    """GSS：全域形狀距離 + 質心距離"""
+    def resample_center(path, num=100):
+        if len(path) < 2:
+            return np.tile(path[0], (num, 1))
         dists = np.cumsum([0] + [np.linalg.norm(path[i] - path[i-1]) for i in range(1, len(path))])
-        if dists[-1] == 0:
-            return np.tile(path[0], (num_points, 1))
-        dists /= dists[-1]
-        target = np.linspace(0, 1, num_points)
+        dists /= dists[-1] if dists[-1] != 0 else 1
+        target = np.linspace(0, 1, num)
         x = np.interp(target, dists, path[:, 0])
         y = np.interp(target, dists, path[:, 1])
-        return np.stack([x, y], axis=1)
+        return np.stack([x, y], axis=1), np.mean(path, axis=0)
 
-    A = resample(points1)
-    B = resample(points2)
+    points1 = np.vstack([c.squeeze() for c in contours1 if len(c) >= 5])
+    points2 = np.vstack([c.squeeze() for c in contours2 if len(c) >= 5])
+    if len(points1) < 2 or len(points2) < 2:
+        return 0.0
 
-    # procrustes自帶去平移、尺度與旋轉後計算平均誤差
-    mtx1, mtx2, disparity = procrustes(A, B)
-    return disparity
+    A, c1 = resample_center(points1, num_points)
+    B, c2 = resample_center(points2, num_points)
 
+    dists = np.linalg.norm(A - B, axis=1)
+    shape_score = 1 / (1 + np.mean(dists))
+    center_score = 1 / (1 + np.linalg.norm(c1 - c2) / 100)
 
+    return (shape_score * 0.7 + center_score * 0.3)
 
-def frss_shape_similarity(contours1, contours2, num_points=100):
-    """
-    加強版相似度指標，加入以下懲罰機制：
-    - 平均距離（均值 + Hausdorff）
-    - 中心點差
-    - 方向轉角差
-    - 封閉拓撲差異（是否為封閉圖形）
-    """
-
+def nss_normalized_shape_similarity(contours1, contours2, num_points=100):
+    """NSS：正規化空間內平均點差"""
     def normalize(path):
-        path = np.array(path, dtype=np.float32)
         center = np.mean(path, axis=0)
-        centered = path - center
-        scale = np.max(np.linalg.norm(centered, axis=1))
-        return centered / scale if scale > 0 else centered
+        scale = np.max(np.linalg.norm(path - center, axis=1))
+        return (path - center) / scale if scale > 0 else path
 
     def resample(path, num=100):
         if len(path) < 2:
             return np.tile(path[0], (num, 1))
-        dists = np.cumsum([0] + [np.linalg.norm(path[i] - path[i - 1]) for i in range(1, len(path))])
+        dists = np.cumsum([0] + [np.linalg.norm(path[i] - path[i-1]) for i in range(1, len(path))])
         dists /= dists[-1] if dists[-1] != 0 else 1
         target = np.linspace(0, 1, num)
         x = np.interp(target, dists, path[:, 0])
         y = np.interp(target, dists, path[:, 1])
         return np.stack([x, y], axis=1)
 
-    def is_closed(path):
-        return np.linalg.norm(path[0] - path[-1]) < 5.0
-
-    def average_angle_diff(path1, path2):
-        angles1 = [math.atan2(path1[i+1][1] - path1[i][1], path1[i+1][0] - path1[i][0]) for i in range(len(path1)-1)]
-        angles2 = [math.atan2(path2[i+1][1] - path2[i][1], path2[i+1][0] - path2[i][0]) for i in range(len(path2)-1)]
-        diff = [min(abs(a1 - a2), 2 * np.pi - abs(a1 - a2)) for a1, a2 in zip(angles1, angles2)]
-        return np.mean(diff)
-
-    # 合併有效輪廓
-    points1 = np.vstack([c.squeeze() for c in contours1 if c.shape[0] >= 5]) if contours1 else np.zeros((1, 2))
-    points2 = np.vstack([c.squeeze() for c in contours2 if c.shape[0] >= 5]) if contours2 else np.zeros((1, 2))
+    points1 = np.vstack([c.squeeze() for c in contours1 if len(c) >= 5])
+    points2 = np.vstack([c.squeeze() for c in contours2 if len(c) >= 5])
     if len(points1) < 2 or len(points2) < 2:
         return 0.0
 
     A = normalize(resample(points1, num_points))
     B = normalize(resample(points2, num_points))
 
-    tree_A = KDTree(A)
-    tree_B = KDTree(B)
-    dists1, _ = tree_B.query(A)
-    dists2, _ = tree_A.query(B)
+    return float(np.clip(1 - np.mean(np.linalg.norm(A - B, axis=1)), 0, 1))
 
-    avg_dist = (np.mean(dists1) + np.mean(dists2)) / 2
-    hausdorff_dist = max(np.max(dists1), np.max(dists2))
+def lss_local_shape_structure(contours1, contours2):
+    """LSS：局部輪廓長度與密度差異"""
+    def get_lengths(contours):
+        return [cv2.arcLength(c, False) for c in contours if len(c) >= 5]
 
-    # 額外懲罰項
-    center_diff = np.linalg.norm(np.mean(A, axis=0) - np.mean(B, axis=0))
-    angle_diff = average_angle_diff(A, B)
-    closed_penalty = 0 if is_closed(A) == is_closed(B) else 0.3
+    lengths1 = get_lengths(contours1)
+    lengths2 = get_lengths(contours2)
 
-    # 綜合分數計算：基於距離、角度差、中心差、拓撲差
-    score = 1 / (1 + 0.5 * avg_dist + 0.2 * hausdorff_dist + 
-                 0.2 * center_diff + 0.3 * angle_diff + closed_penalty)
+    if len(lengths1) == 0 or len(lengths2) == 0:
+        return 0.0
 
-    return float(np.clip(score, 0, 1))
+    min_len = min(len(lengths1), len(lengths2))
+    l1 = np.sort(lengths1)[:min_len]
+    l2 = np.sort(lengths2)[:min_len]
+
+    diff = np.abs(np.array(l1) - np.array(l2))
+    return float(np.clip(1 - np.mean(diff) / (np.mean(l1 + l2) / 2 + 1e-5), 0, 1))
+
+def scs_shape_similarity(contours1, contours2):
+    """
+    SCS：Symmetric Contour Similarity
+    接收兩組輪廓列表，回傳相似度值（0~1）
+    """
+
+    def contours_to_points(contours):
+        if not contours:
+            return np.zeros((1, 2))
+        return np.concatenate([c.reshape(-1, 2) for c in contours if c.shape[0] >= 5])
+
+    def mean_min_distance(A, B):
+        tree = cKDTree(A)
+        dists, _ = tree.query(B)
+        return np.mean(dists)
+
+    def symmetric_similarity(A, B):
+        if len(A) < 2 or len(B) < 2:
+            return 0.0
+        avg_dist = (mean_min_distance(A, B) + mean_min_distance(B, A)) / 2
+        return 1 / (1 + avg_dist)
+
+    points1 = contours_to_points(contours1)
+    points2 = contours_to_points(contours2)
+
+    return float(symmetric_similarity(points1, points2))
+
+
