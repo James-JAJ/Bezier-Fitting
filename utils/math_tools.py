@@ -471,31 +471,54 @@ def lss_local_shape_structure(contours1, contours2):
     diff = np.abs(np.array(l1) - np.array(l2))
     return float(np.clip(1 - np.mean(diff) / (np.mean(l1 + l2) / 2 + 1e-5), 0, 1))
 
-def scs_shape_similarity(contours1, contours2):
-    """
-    SCS：Symmetric Contour Similarity
-    接收兩組輪廓列表，回傳相似度值（0~1）
-    """
 
+def scs_shape_similarity(A, B):
+    """
+    對稱距離相似度計算
+    自動處理輪廓轉點雲，然後計算相似度
+    
+    參數:
+        A, B: 可以是輪廓列表或點雲數組
+    
+    回傳:
+        float: 相似度值 (0-1之間)
+    """
+    
     def contours_to_points(contours):
-        if not contours:
-            return np.zeros((1, 2))
-        return np.concatenate([c.reshape(-1, 2) for c in contours if c.shape[0] >= 5])
-
-    def mean_min_distance(A, B):
-        tree = cKDTree(A)
-        dists, _ = tree.query(B)
+        """將輪廓轉換為點雲"""
+        # 如果已經是點雲格式 (N, 2)，直接返回
+        if isinstance(contours, np.ndarray) and contours.ndim == 2 and contours.shape[1] == 2:
+            return contours
+        
+        # 如果是輪廓列表，轉換為點雲
+        if isinstance(contours, list) and len(contours) > 0:
+            if contours is None or len(contours) == 0:
+                return np.zeros((1, 2))
+            valid = [c.reshape(-1, 2) for c in contours if c.shape[0] >= 5]
+            return np.concatenate(valid, axis=0) if valid else np.zeros((1, 2))
+        
+        # 單個輪廓的情況
+        if isinstance(contours, np.ndarray):
+            return contours.reshape(-1, 2)
+        
+        return np.zeros((1, 2))
+    
+    def mean_min_distance(X, Y):
+        """計算從Y到X的平均最短距離"""
+        tree = cKDTree(X)
+        dists, _ = tree.query(Y)
         return np.mean(dists)
-
-    def symmetric_similarity(A, B):
-        if len(A) < 2 or len(B) < 2:
-            return 0.0
-        avg_dist = (mean_min_distance(A, B) + mean_min_distance(B, A)) / 2
-        return 1 / (1 + avg_dist)
-
-    points1 = contours_to_points(contours1)
-    points2 = contours_to_points(contours2)
-
-    return float(symmetric_similarity(points1, points2))
-
+    
+    # 轉換為點雲
+    points_A = contours_to_points(A)
+    points_B = contours_to_points(B)
+    
+    # 檢查點數量
+    if len(points_A) < 2 or len(points_B) < 2:
+        return 0.0
+    
+    # 計算雙向平均距離
+    avg_dist = (mean_min_distance(points_A, points_B) + mean_min_distance(points_B, points_A)) / 2
+    sim = 1 / (1 + avg_dist)
+    return sim
 

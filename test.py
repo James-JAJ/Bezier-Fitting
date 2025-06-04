@@ -1,50 +1,45 @@
-import sys
-import os
-import cv2
-import numpy as np
-sys.stdout.reconfigure(encoding='utf-8')
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from utils import *
-image_pathA="benchmarkimg/NO_CNN_start.(101, 129)end.(357, 156).Original.png"
-image_pathB="benchmarkimg/NO_CNN_start.(101, 129)end.(357, 156).RSME.png"
 import cv2
 import numpy as np
 from scipy.spatial import cKDTree
+import math
+# -*- coding: utf-8 -*-
+import sys
+import numpy as np
+import cv2
+from flask import Flask, request, jsonify, send_from_directory, Response
+import time
+import threading
+import os
+from utils import *  # 導入所有工具函數，包括 server_tools 中的函數
+#print(os.getcwd())
+#system initialization
+sys.stdout.reconfigure(encoding='utf-8')  # 改變輸出的
+
+# 重新載入圖片（因 code 執行環境重置）
+img_path1 = "benchmarkimg/B.png"
+img_path2 = "benchmarkimg/red_layer.png"
+"""
+img_path1 = "benchmarkimg/NO_CNN_start.(101, 129)end.(357, 156).Original.png"
+img_path2 = "benchmarkimg/NO_CNN_start.(101, 129)end.(357, 156).RSME.png"
+"""
+
+# 載入並反白處理
+img1 = cv2.imread(img_path1, cv2.IMREAD_GRAYSCALE)
+img2 = cv2.imread(img_path2, cv2.IMREAD_GRAYSCALE)
+
+img1 = cv2.bitwise_not(img1)
+img2 = cv2.bitwise_not(img2)
+
+# 二值化 + 輪廓提取
+_, bin1 = cv2.threshold(img1, 200, 255, cv2.THRESH_BINARY_INV)
+_, bin2 = cv2.threshold(img2, 200, 255, cv2.THRESH_BINARY_INV)
+showimg(img1)
+showimg(img2)
+A = np.argwhere(bin1==0)
+B = np.argwhere(bin2==0)
 
 
-def scs_shape_similarity(contours1, contours2):
-    """
-    SCS：Symmetric Contour Similarity
-    接收兩組輪廓列表，回傳相似度值（0~1）
-    """
+sim = scs_shape_similarity(A, B)
 
-    def contours_to_points(contours):
-        if not contours:
-            return np.zeros((1, 2))
-        return np.concatenate([c.reshape(-1, 2) for c in contours if c.shape[0] >= 5])
 
-    def mean_min_distance(A, B):
-        tree = cKDTree(A)
-        dists, _ = tree.query(B)
-        return np.mean(dists)
-
-    def symmetric_similarity(A, B):
-        if len(A) < 2 or len(B) < 2:
-            return 0.0
-        avg_dist = (mean_min_distance(A, B) + mean_min_distance(B, A)) / 2
-        return 1 / (1 + avg_dist)
-
-    points1 = contours_to_points(contours1)
-    points2 = contours_to_points(contours2)
-
-    return float(symmetric_similarity(points1, points2))
-imgA = cv2.imread("test/red_layer.png", 0)
-imgB = cv2.imread("test/B.png", 0)
-_, binA = cv2.threshold(imgA, 128, 255, cv2.THRESH_BINARY_INV)
-_, binB = cv2.threshold(imgB, 128, 255, cv2.THRESH_BINARY_INV)
-
-contoursA, _ = cv2.findContours(binA, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-contoursB, _ = cv2.findContours(binB, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-
-score = scs_shape_similarity(contoursA, contoursB)
-print("SCS 相似度分數：", score)
+print(sim*100)

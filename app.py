@@ -140,6 +140,9 @@ def process_upload(width, height, contours, testmode):
             
                 
                  #存檔用
+            
+
+            """
             try:
                 save_dir = os.path.join(os.getcwd(), "img")
                 os.makedirs(save_dir, exist_ok=True)
@@ -168,8 +171,7 @@ def process_upload(width, height, contours, testmode):
 
             except Exception as e:
                 custom_print(f"❌ 存檔時發生錯誤: {e}")
-
-                
+            """
             
 
 
