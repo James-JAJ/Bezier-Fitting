@@ -156,36 +156,46 @@ def process_upload(width, height, contours, testmode):
                             orig[y][x] = 255
 
                 orig = 255 - orig  # 反白處理（白底黑線）
-
+                temp = 255 - final
                 temp = cv2.cvtColor(final, cv2.COLOR_BGR2GRAY)
-                _, temp = cv2.threshold(temp, 200, 255, cv2.THRESH_BINARY_INV)
-
-                origlist, _ = cv2.findContours(orig, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
-                fittinglist, _ = cv2.findContours(temp, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
-
-                value = frss_shape_similarity(origlist, fittinglist)
+                _, temp1 = cv2.threshold(temp, 200, 255, cv2.THRESH_BINARY)
+                _, temp2 = cv2.threshold(orig, 200, 255, cv2.THRESH_BINARY)
+                #showimg(orig)
+                #showimg(temp)
+                A = np.argwhere(temp1==0)
+                B = np.argwhere(temp2==0)    
+                value = scs_shape_similarity(A, B)
                 print(value)
 
-                cv2.imwrite(os.path.join(save_dir, f"{value:.3f}_{len(custom_points)}_orig.png"), orig)
-                cv2.imwrite(os.path.join(save_dir, f"{value:.3f}_{len(custom_points)}_fitting.png"), temp)
-
+                cv2.imwrite(os.path.join(save_dir, f"{value:.5f}_{len(custom_points)}_orig.png"), orig)
+                cv2.imwrite(os.path.join(save_dir, f"{value:.5f}_{len(custom_points)}_fitting.png"), temp)
+                
             except Exception as e:
-                custom_print(f"❌ 存檔時發生錯誤: {e}")
+                print(f"❌ 存檔時發生錯誤: {e}")
             
             
 
 
 
             if testmode:
+                """
                 # 畫綠色特徵點
                 for point in rdp_points:
                     final = cv2.circle(final, (int(point[0]), int(point[1])), 5, (255, 0, 0), -1)
+                """
+                
                 for point in custom_points:
-                    final = cv2.circle(final, (int(point[0]), int(point[1])), 5, (0, 255, 0), 2)    
+                    final = cv2.circle(final, (int(point[0]), int(point[1])), 5, (0, 255, 0), -1)    
                 end_time = time.time()
                 custom_print(f"✅ 處理完成！共花費 {end_time - start_time:.2f} 秒")
                 image_base64.append(encode_image_to_base64(final))
-                
+                orig = cv2.cvtColor(orig, cv2.COLOR_GRAY2BGR)
+                # 將 final 非白色區域覆蓋到 orig 上
+                mask = np.any(final != [255, 255, 255], axis=-1)
+                combined = orig.copy()
+                combined[mask] = final[mask]
+                final = combined
+                cv2.imwrite(os.path.join(save_dir, f"{value:.5f}_{len(custom_points)}_output.png"),final)
            
         except Exception as e:
             import traceback

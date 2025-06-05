@@ -519,5 +519,5 @@ def scs_shape_similarity(A, B):
     # 計算雙向平均距離
     avg_dist = (mean_min_distance(points_A, points_B) + mean_min_distance(points_B, points_A)) / 2
     sim = 1 / (1 + avg_dist)
-    return sim
+    return (sim*100)**1.1
 

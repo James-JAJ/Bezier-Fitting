@@ -369,21 +369,41 @@ def svcfp(paths, min_radius=10, max_radius=50, curvature_threshold=27, rdp_epsil
                    if np.linalg.norm(path[i] - center) < threshold]
         return center_idx if not indices else indices[len(indices)//2]
 
-    # 生成最終關鍵點
+    # 修正：生成最終關鍵點 - 確保索引遞增
     final_idx = []
-    for i, idx in enumerate(extended_breakpoints):
-        if idx >= len(simplified_points):
+    last_used_idx = -1  # 記錄上一次使用的索引
+    
+    for i, simplified_idx in enumerate(extended_breakpoints):
+        if simplified_idx >= len(simplified_points) or simplified_idx >= len(original_indices):
             continue
-        for j in range(len(paths)):
-            if np.array_equal(paths[j], simplified_points[idx]):
-                if i == 0 or i == len(extended_breakpoints)-1:
-                    # 保留首尾點
-                    final_idx.append(j)
-                else:
-                    # 其他點進行融合
-                    final_idx.append(fuse_nearby(paths, j))
-                break
+            
+        # 獲取對應的原始索引
+        original_idx = original_indices[simplified_idx]
+        
+        if i == 0 or i == len(extended_breakpoints) - 1:
+            # 保留首尾點，但確保遞增
+            if original_idx > last_used_idx:
+                final_idx.append(original_idx)
+                last_used_idx = original_idx
+        else:
+            # 其他點進行融合，但確保遞增
+            fused_idx = fuse_nearby(paths, original_idx)
+            if fused_idx > last_used_idx:
+                final_idx.append(fused_idx)
+                last_used_idx = fused_idx
+            elif original_idx > last_used_idx:
+                # 如果融合後的索引不符合遞增要求，使用原始索引
+                final_idx.append(original_idx)
+                last_used_idx = original_idx
+            # 如果都不符合遞增要求，則跳過該點
 
+    # 確保最終結果確實遞增（雙重檢查）
+    final_idx_sorted = []
+    for idx in final_idx:
+        if not final_idx_sorted or idx > final_idx_sorted[-1]:
+            final_idx_sorted.append(idx)
+    
+    final_idx = final_idx_sorted
     key_points = [paths[idx] for idx in final_idx]
 
     custom_print(ifserver, f"找到 {len(key_points)} 個關鍵點")

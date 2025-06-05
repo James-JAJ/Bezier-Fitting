@@ -28,7 +28,7 @@ def apply_perturbation(image: np.ndarray, level: float) -> np.ndarray:
     rows, cols = image.shape
 
     M = cv2.getRotationMatrix2D((cols / 2, rows / 2), angle, scale)
-    image = cv2.warpAffine(image, M, (cols, rows))
+    image = cv2.warpAffine(image, M, (cols, rows), borderMode=cv2.BORDER_CONSTANT, borderValue=255)
     image = cv2.warpAffine(image, np.float32([[1, 0, tx], [0, 1, ty]]), (cols, rows))
     if level > 0:
         image = gaussian_filter(image, sigma=level * 2)
@@ -48,20 +48,21 @@ def evaluate_images_multiple_metrics(
         print(f"處理圖像: {file}")
         path = os.path.join(folder_path, file)
         base = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
-
-
-        base_points = image_to_points_from_lines(path)
-        _, bin1 = cv2.threshold(base_points, 200, 255, cv2.THRESH_BINARY_INV)
-        A = np.argwhere(bin1==255)
-
+        _, bin1 = cv2.threshold(base, 200, 255, cv2.THRESH_BINARY)
+        A = np.argwhere(bin1==0)
         for name, metric in metrics.items():
             scores = []
             for level in levels:
                 try:
                     distorted = apply_perturbation(base.copy(), level)
-                    B = np.argwhere(distorted==255)
+                    #showimg(distorted)
+                    _, bin2 = cv2.threshold(distorted, 200, 255, cv2.THRESH_BINARY)
+
+                    B = np.argwhere(bin2==0)
+                    #print (B)
+
                     if name == 'SCS':
-                        score = scs_shape_similarity(A, B)
+                        score = scs_shape_similarity(A, B)/100
                     else:
                         score = metric(base, distorted)
 
