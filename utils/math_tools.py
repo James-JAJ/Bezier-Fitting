@@ -471,7 +471,6 @@ def lss_local_shape_structure(contours1, contours2):
     diff = np.abs(np.array(l1) - np.array(l2))
     return float(np.clip(1 - np.mean(diff) / (np.mean(l1 + l2) / 2 + 1e-5), 0, 1))
 
-
 def scs_shape_similarity(A, B):
     """
     對稱距離相似度計算

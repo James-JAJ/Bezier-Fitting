@@ -16,11 +16,12 @@ from utils import *  # 導入所有工具函數，包括 server_tools 中的函�
 sys.stdout.reconfigure(encoding='utf-8')  # 改變輸出的
 
 # 重新載入圖片（因 code 執行環境重置）
-img_path1 = "benchmarkimg/B.png"
-img_path2 = "benchmarkimg/red_layer.png"
-"""
+
 img_path1 = "benchmarkimg/NO_CNN_start.(101, 129)end.(357, 156).Original.png"
 img_path2 = "benchmarkimg/NO_CNN_start.(101, 129)end.(357, 156).RSME.png"
+"""
+img_path1 = "benchmarkimg/B.png"
+img_path2 = "benchmarkimg/red_layer.png"
 """
 
 # 載入並反白處理
@@ -35,8 +36,9 @@ _, bin1 = cv2.threshold(img1, 200, 255, cv2.THRESH_BINARY_INV)
 _, bin2 = cv2.threshold(img2, 200, 255, cv2.THRESH_BINARY_INV)
 showimg(img1)
 showimg(img2)
-A = np.argwhere(bin1==0)
-B = np.argwhere(bin2==0)
+A = np.argwhere(bin1==255)
+B = np.argwhere(bin2==255)
+print(A)
 
 
 sim = scs_shape_similarity(A, B)
