@@ -48,26 +48,24 @@ def evaluate_images_multiple_metrics(
         print(f"處理圖像: {file}")
         path = os.path.join(folder_path, file)
         base = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
-        base = cv2.resize(base, (256, 256))
+
 
         base_points = image_to_points_from_lines(path)
+        _, bin1 = cv2.threshold(base_points, 200, 255, cv2.THRESH_BINARY_INV)
+        A = np.argwhere(bin1==255)
 
         for name, metric in metrics.items():
             scores = []
             for level in levels:
                 try:
                     distorted = apply_perturbation(base.copy(), level)
-                    distorted_path = os.path.join(folder_path, f"_temp_{file}_lv{level:.2f}.png")
-                    cv2.imwrite(distorted_path, distorted)
-                    distorted_points = image_to_points_from_lines(distorted_path)
-
+                    B = np.argwhere(distorted==255)
                     if name == 'SCS':
-                        score = scs_shape_similarity(base_points, distorted_points)
+                        score = scs_shape_similarity(A, B)
                     else:
                         score = metric(base, distorted)
 
                     scores.append(score)
-                    os.remove(distorted_path)
                 except Exception as e:
                     print(f"  警告: {name} 在 level {level:.2f} 時出錯: {e}")
                     scores.append(0.0)
