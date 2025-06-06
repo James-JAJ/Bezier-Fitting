@@ -130,7 +130,7 @@ def process_upload(width, height, contours, testmode):
                         beizer_array.append(ctrl_pts)
 
                     curve_points = bezier_curve_calculate(ctrl_pts)
-                    final = draw_curve_on_image(final, curve_points, thickness=1, color=(0, 0, 255))  # 紅色線條
+                    final = draw_curve_on_image(final, curve_points, thickness=2, color=(0, 0, 255))  # 紅色線條
                     
                     if len(curve_points) == 0:
                         custom_print(f"⚠️ Line {i} 沒產生曲線點")
@@ -141,8 +141,7 @@ def process_upload(width, height, contours, testmode):
                 
                  #存檔用
             
-
-            
+            """
             try:
                 save_dir = os.path.join(os.getcwd(), "img")
                 os.makedirs(save_dir, exist_ok=True)
@@ -172,6 +171,17 @@ def process_upload(width, height, contours, testmode):
                 
             except Exception as e:
                 print(f"❌ 存檔時發生錯誤: {e}")
+
+                orig = cv2.cvtColor(orig, cv2.COLOR_GRAY2BGR)
+                # 將 final 非白色區域覆蓋到 orig 上
+                mask = np.any(final != [255, 255, 255], axis=-1)
+                combined = orig.copy()
+                combined[mask] = final[mask]
+                final = combined
+                cv2.imwrite(os.path.join(save_dir, f"{value:.5f}_{len(custom_points)}_output.png"),final)
+            """
+            
+            
             
             
 
@@ -189,13 +199,7 @@ def process_upload(width, height, contours, testmode):
                 end_time = time.time()
                 custom_print(f"✅ 處理完成！共花費 {end_time - start_time:.2f} 秒")
                 image_base64.append(encode_image_to_base64(final))
-                orig = cv2.cvtColor(orig, cv2.COLOR_GRAY2BGR)
-                # 將 final 非白色區域覆蓋到 orig 上
-                mask = np.any(final != [255, 255, 255], axis=-1)
-                combined = orig.copy()
-                combined[mask] = final[mask]
-                final = combined
-                cv2.imwrite(os.path.join(save_dir, f"{value:.5f}_{len(custom_points)}_output.png"),final)
+                
            
         except Exception as e:
             import traceback
