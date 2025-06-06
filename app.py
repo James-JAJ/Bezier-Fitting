@@ -102,7 +102,7 @@ def process_upload(width, height, contours, testmode):
                     insert_threshold=insert_threshold,
                     fuse_radio=fuse_radio,
                     fuse_threshold=fuse_threshold,
-                    ifserver=0
+                    ifserver=1
                 )
 
                 pointtotal += len(custom_points)
@@ -257,7 +257,7 @@ def upload():
     if paths is not None and len(paths) > 0:
         # 處理繪圖點模式
         custom_print("Received paths:", paths)
-        thread = threading.Thread(target=process_upload, args=(width, height, paths, testmode == 'true'))
+        thread = process_upload(width, height, paths, testmode == 'true')
         
     elif image_data is not None and len(image_data) > 0:
         # 處理 Base64 編碼圖片模式

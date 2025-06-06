@@ -124,35 +124,20 @@ def mean_min_dist(A, B):
         """
         return np.mean([np.min(np.linalg.norm(A - b, axis=1)) for b in B])
 def interpolate_points(points, step=1):
-    """ 使用線性插值來補足缺失的點，使路徑更加平滑
-    Args:
-        points (list of tuple): 原始離散點列表 [(x1, y1), (x2, y2), ...]
-        step (float): 插值間距，數值越小補的點越多，預設為 1
-    Returns:
-        list of tuple: 平滑後的點列表
-    ⚠️ 備註:
-    - 會根據兩點間的距離自動決定插值數量
-    - 回傳的座標會轉換為整數格式
-    - step 參數控制插值密度，建議根據影像解析度調整
-    """
     new_points = []
-    
     for i in range(len(points) - 1):
         x1, y1 = points[i]
         x2, y2 = points[i + 1]
-        
-        # 計算兩點之間的距離
         dist = np.linalg.norm([x2 - x1, y2 - y1])
-        
-        # 根據距離決定插值數量
         num_steps = max(int(dist / step), 1)
-        
-        for t in np.linspace(0, 1, num_steps):
-            new_x = int(x1 + (x2 - x1) * t)
-            new_y = int(y1 + (y2 - y1) * t)
-            new_points.append((new_x, new_y))
-    
+        for t in np.linspace(0, 1, num_steps + 1):  # 強制含終點
+            new_x = round(x1 + (x2 - x1) * t)
+            new_y = round(y1 + (y2 - y1) * t)
+            new_pt = (new_x, new_y)
+            if len(new_points) == 0 or new_points[-1] != new_pt:
+                new_points.append(new_pt)
     return new_points
+
 def make_circular_index(idx, length):
     """ 環狀索引處理函數
     Args:
@@ -519,5 +504,5 @@ def scs_shape_similarity(A, B):
     # 計算雙向平均距離
     avg_dist = (mean_min_distance(points_A, points_B) + mean_min_distance(points_B, points_A)) / 2
     sim = 1 / (1 + avg_dist)
-    return (sim*100)**1.1
+    return (sim*100)**1.05
 

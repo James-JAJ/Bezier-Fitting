@@ -49,7 +49,7 @@ def evaluate_images_multiple_metrics(
         path = os.path.join(folder_path, file)
         base = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
         _, bin1 = cv2.threshold(base, 200, 255, cv2.THRESH_BINARY)
-        A = np.argwhere(bin1==0)
+        A = np.argwhere(bin1==255)
         for name, metric in metrics.items():
             scores = []
             for level in levels:
@@ -58,11 +58,11 @@ def evaluate_images_multiple_metrics(
                     #showimg(distorted)
                     _, bin2 = cv2.threshold(distorted, 200, 255, cv2.THRESH_BINARY)
 
-                    B = np.argwhere(bin2==0)
+                    B = np.argwhere(bin2==255)
                     #print (B)
 
                     if name == 'SCS':
-                        score = scs_shape_similarity(A, B)/100
+                        score = scs_shape_similarity(A, B)
                     else:
                         score = metric(base, distorted)
 
