@@ -17,8 +17,8 @@ sys.stdout.reconfigure(encoding='utf-8')  # 改變輸出的
 
 # 重新載入圖片（因 code 執行環境重置）
 
-img_path1 = "img/152115_80.71715_27_(0.01s)_inkscape.png"
-img_path2 = "img/152115_80.71715_27_(0.01s)_orig.png"
+img_path1 = "img/154549_66.50168_40_(0.01s)_inkscape.png"
+img_path2 = "img/154549_66.50168_40_(0.01s)_orig.png"
 """
 img_path1 = "test/NO_CNN_start.(147, 46)end.(485, 423).fitted.png"
 img_path2 = "test/NO_CNN_start.(147, 46)end.(485, 423).Original.png"
@@ -35,8 +35,8 @@ img2 = cv2.imread(img_path2, cv2.IMREAD_GRAYSCALE)
 # 二值化 + 輪廓提取
 _, bin1 = cv2.threshold(img1, 200, 255, cv2.THRESH_BINARY)
 _, bin2 = cv2.threshold(img2, 200, 255, cv2.THRESH_BINARY)
-showimg(img1)
-showimg(img2)
+#showimg(img1)
+#showimg(img2)
 A = np.argwhere(bin1==0)
 B = np.argwhere(bin2==0)
 print(A)
