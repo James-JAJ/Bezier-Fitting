@@ -9,34 +9,6 @@ sys.stdout.reconfigure(encoding='utf-8')
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils import *
 
-def interpolate_path(path, num_points=500):
-    path = np.array(path, dtype=np.float32)
-    distances = np.cumsum([0] + [np.linalg.norm(path[i] - path[i - 1]) for i in range(1, len(path))])
-    total_length = distances[-1]
-    if total_length == 0:
-        return np.tile(path[0], (num_points, 1))
-    distances /= total_length
-    target_positions = np.linspace(0, 1, num_points)
-    x_interp = np.interp(target_positions, distances, path[:, 0])
-    y_interp = np.interp(target_positions, distances, path[:, 1])
-    return np.stack([x_interp, y_interp], axis=1)
-
-def normalized_shape_similarity(path1, path2, num_points=500):
-    path1 = interpolate_path(path1, num_points)
-    path2 = interpolate_path(path2, num_points)
-
-    def normalize_path(path):
-        center = np.mean(path, axis=0)
-        centered = path - center
-        scale = np.max(np.linalg.norm(centered, axis=1))
-        return centered / scale if scale > 0 else centered
-
-    path1 = normalize_path(path1)
-    path2 = normalize_path(path2)
-
-    distances = np.linalg.norm(path1 - path2, axis=1)
-    mean_distance = np.mean(distances)
-    return 1 - mean_distance
 
 
 if __name__ == "__main__":
@@ -116,9 +88,6 @@ if __name__ == "__main__":
         img = fill_small_contours(img, area_threshold=3000)
         showimg(img)
 
-        # ⚠️ 進行形狀相似度比對
-        similarity_value = normalized_shape_similarity(raw_points, fitted_points)
-        print("🟡 輪廓與貝茲曲線相似度分數：", similarity_value)
 
     except Exception as e:
         print(f"發生錯誤: {e}")

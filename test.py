@@ -17,8 +17,8 @@ sys.stdout.reconfigure(encoding='utf-8')  # 改變輸出的
 
 # 重新載入圖片（因 code 執行環境重置）
 
-img_path1 = "img/154549_66.50168_40_(0.01s)_inkscape.png"
-img_path2 = "img/154549_66.50168_40_(0.01s)_orig.png"
+img_path1 = "output_img/182454_76.55754_536_SVCFP+LSTSQ(14.93s)_inkscape.png"
+img_path2 = "output_img/182454_76.55754_536_SVCFP+LSTSQ(14.93s)_contour.png"
 """
 img_path1 = "test/NO_CNN_start.(147, 46)end.(485, 423).fitted.png"
 img_path2 = "test/NO_CNN_start.(147, 46)end.(485, 423).Original.png"
