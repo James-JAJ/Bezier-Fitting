@@ -208,6 +208,18 @@ def process_upload(width, height, contours, testmode):
 
 def process_upload_image(image_data, width, height):
     # 這是處理 Base64 編碼圖片的函數
+    scale_factor = 2
+    final_shrink_factor = 0.5
+    blur_ksize = 3
+    threshold_value = 200
+    rdp_epsilon = 2
+    curvature_threshold = 42
+    min_radius = 10
+    max_radius = 50
+    insert_threshold = 100
+    fuse_radio = 5
+    fuse_threshold = 10
+    ifshow = 0
     custom_print(f"處理 Canvas 圖像: width={width}, height={height}, image_data_len={len(image_data) if image_data else 0}")
     try:
         # 移除 Data URL 的前綴 (例如: "data:image/png;base64,")
@@ -231,11 +243,66 @@ def process_upload_image(image_data, width, height):
         #custom_print(f"成功解碼圖片，圖像形狀: {img.shape}")
         # 範例：儲存圖片
         # cv2.imwrite("uploaded_canvas_image_from_combined_endpoint.png", img)
+        original_img, gray_img = inputimg_colortogray(decoded_image)
+        preprocessed_img = preprocess_image(gray_img, scale_factor, blur_ksize, threshold_value, ifshow)
+        contours, hierarchy = cv2.findContours(preprocessed_img, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+        hierarchy = hierarchy[0]
+
+        contours = shrink_contours(contours, final_shrink_factor)
+        total_ctrl_pts = []
+        hierarchy_levels = []
+        contour_levels = get_contour_levels(hierarchy)
+
+        raw_points = []       # 原始輪廓點
+        fitted_points = []    # 擬合貝茲曲線點
+
+        for contour_idx, contour in enumerate(contours):
+            fixcontour = [sublist[0] for sublist in contour]
+            fixcontour = remove_consecutive_duplicates(fixcontour)
+            raw_points.extend(fixcontour)
+
+            custom_points, custom_idx = svcfp(
+                fixcontour,
+                min_radius=min_radius,
+                max_radius=max_radius,
+                curvature_threshold=curvature_threshold,
+                rdp_epsilon=rdp_epsilon,
+                insert_threshold=insert_threshold,
+                fuse_radio=fuse_radio,
+                fuse_threshold=fuse_threshold,
+                ifserver=0
+            )
+            path = fixcontour
+            for i in range(len(custom_idx) - 1):
+                start = custom_idx[i]
+                end = custom_idx[i + 1]
+                target_curve = path[start:end]
+                target_curve = np.array([(int(p[0]), int(p[1])) for p in target_curve])
+                ctrl_pts = fit_least_squares_bezier(target_curve)
+
+                curve_pts = bezier_curve_calculate(ctrl_pts)
+                fitted_points.extend(curve_pts)
+                draw_curve_on_image(original_img, curve_pts)
+
+                total_ctrl_pts.append(ctrl_pts)
+                hierarchy_levels.append(contour_levels[contour_idx])
+
+        # 閉合修正
+        for i in range(len(total_ctrl_pts)):
+            end_i = np.array(total_ctrl_pts[i][3])
+            for j in range(len(total_ctrl_pts)):
+                if i == j:
+                    continue
+                start_j = np.array(total_ctrl_pts[j][0])
+                if np.linalg.norm(end_i - start_j) <= 2:
+                    total_ctrl_pts[j][0] = tuple(end_i)
+        showimg(original_img)
         return True
 
     except Exception as e:
-        custom_print(f"處理圖片上傳錯誤: {e}")
-        return False
+        import traceback
+        error_message = traceback.format_exc()
+        print("❌ process_upload 發生錯誤：", error_message)
        
                 
 
@@ -270,12 +337,12 @@ def upload():
         response_message = "No valid data (points or image) received.\n"
         custom_print(response_message)
         return jsonify({"message": response_message}), 400 # 返回 400 Bad Request
-
     if thread:
         thread.start()
 
     # 回應上傳成功
     return jsonify({"message": response_message})
+
 if __name__ == '__main__':
     global model
     #CNN
