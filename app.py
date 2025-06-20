@@ -323,19 +323,19 @@ def upload():
 
     if paths is not None and len(paths) > 0:
         # 處理繪圖點模式
-        custom_print("Received paths:", paths)
+        custom_print(0,"Received paths:"+str(paths))
         thread = process_upload(width, height, paths, testmode == 'true')
         
     elif image_data is not None and len(image_data) > 0:
         # 處理 Base64 編碼圖片模式
-        custom_print("Received image data (Base64).")
+        custom_print(1,"Received image data (Base64).")
         # 將 image_data 和 width, height 傳遞給 process_upload_image
         thread = threading.Thread(target=process_upload_image, args=(image_data, width, height))
         
     else:
         # 如果既沒有 points 也沒有 image 數據
         response_message = "No valid data (points or image) received.\n"
-        custom_print(response_message)
+        custom_print(1,response_message)
         return jsonify({"message": response_message}), 400 # 返回 400 Bad Request
     if thread:
         thread.start()
