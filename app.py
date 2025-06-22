@@ -213,17 +213,17 @@ def process_upload(width, height, contours, testmode):
 
 def process_upload_image(image_data, width, height, testmode):
     # 這是處理 Base64 編碼圖片的函數
-    scale_factor = 2
-    final_shrink_factor = 0.5
-    blur_ksize = 3
-    threshold_value = 200
-    rdp_epsilon = 2
-    curvature_threshold = 42
-    min_radius = 10
-    max_radius = 50
-    insert_threshold = 100
-    fuse_radio = 5
-    fuse_threshold = 10
+    scale_factor = 2 
+    final_shrink_factor = 0.5 
+    blur_ksize = 3 
+    threshold_value = 200 
+    rdp_epsilon = 4 
+    curvature_threshold = 41 
+    min_radius = 10 
+    max_radius = 50 
+    insert_threshold = 100 
+    fuse_radio = 5 
+    fuse_threshold = 10 
     ifshow = 0
     
     custom_print(f"處理 Canvas 圖像: width={width}, height={height}, image_data_len={len(image_data) if image_data else 0}")
