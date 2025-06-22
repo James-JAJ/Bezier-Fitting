@@ -510,7 +510,7 @@
 
           console.log("準備發送的資料 (Canvas 圖像):", imageDataURL.substring(0, 50) + "..."); // 顯示部分Base64字串用於調試
 
-          let uploadUrl = "/upload_image?testmode=" + clearOnDraw; // 建議為圖片上傳使用不同的 API 端點
+          let uploadUrl = "/upload?testmode=" + clearOnDraw; // 建議為圖片上傳使用不同的 API 端點
           fetch(uploadUrl, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' }, // 由於我們發送的是 JSON，所以內容類型還是 application/json

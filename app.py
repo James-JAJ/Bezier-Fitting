@@ -7,6 +7,11 @@ import time
 import threading
 import os
 from utils import *  # 導入所有工具函數，包括 server_tools 中的函數
+import base64
+import numpy as np
+import cv2
+from io import BytesIO
+from PIL import Image
 #print(os.getcwd())
 #system initialization
 sys.stdout.reconfigure(encoding='utf-8')  # 改變輸出的
@@ -206,7 +211,7 @@ def process_upload(width, height, contours, testmode):
             error_message = traceback.format_exc()
             print("❌ process_upload 發生錯誤：", error_message)
 
-def process_upload_image(image_data, width, height):
+def process_upload_image(image_data, width, height, testmode):
     # 這是處理 Base64 編碼圖片的函數
     scale_factor = 2
     final_shrink_factor = 0.5
@@ -220,30 +225,44 @@ def process_upload_image(image_data, width, height):
     fuse_radio = 5
     fuse_threshold = 10
     ifshow = 0
+    
     custom_print(f"處理 Canvas 圖像: width={width}, height={height}, image_data_len={len(image_data) if image_data else 0}")
+    
     try:
-        # 移除 Data URL 的前綴 (例如: "data:image/png;base64,")
-        if "base64," in image_data:
-            image_data = image_data.split("base64,")[1]
-
-        # 解碼 Base64 字串
-        decoded_image = encode_image_to_base64(image_data)
-        #Eric :以下將 decoded_image 依照 image_fitting.py  處理，並比照 process_upload() 回復 
+        # 解碼 Base64 圖像數據
+        # 移除 data:image/png;base64, 前綴（如果存在）
+        if image_data.startswith('data:image'):
+            # 找到逗號後的實際 base64 數據
+            base64_data = image_data.split(',')[1]
+        else:
+            base64_data = image_data
         
-
-        # 將解碼後的數據轉換為 OpenCV 圖片格式
-        #np_arr = np.frombuffer(decoded_image, np.uint8)
-        #img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
-
-        if image_data is None:
-            custom_print("圖片解碼失敗")
-            return False # 或拋出錯誤
-
-        # 在這裡可以對 img 進行進一步的處理，例如儲存、分析等
-        #custom_print(f"成功解碼圖片，圖像形狀: {img.shape}")
-        # 範例：儲存圖片
-        # cv2.imwrite("uploaded_canvas_image_from_combined_endpoint.png", img)
-        original_img, gray_img = inputimg_colortogray(decoded_image)
+        # 解碼 Base64
+        image_bytes = base64.b64decode(base64_data)
+        
+        # 使用 PIL 讀取圖像
+        pil_image = Image.open(BytesIO(image_bytes))
+        
+        # 轉換為 numpy 數組 (RGB)
+        image_array = np.array(pil_image)
+        
+        # 如果是 RGBA，轉換為 RGB
+        if image_array.shape[2] == 4:
+            # 創建白色背景
+            background = np.ones((image_array.shape[0], image_array.shape[1], 3), dtype=np.uint8) * 255
+            # 處理 alpha 通道
+            alpha = image_array[:, :, 3] / 255.0
+            for c in range(3):
+                background[:, :, c] = background[:, :, c] * (1 - alpha) + image_array[:, :, c] * alpha
+            image_array = background
+        
+        # 轉換為 BGR 格式 (OpenCV 使用 BGR)
+        image_data = cv2.cvtColor(image_array, cv2.COLOR_RGB2BGR)
+        
+        # 現在 image_data 是正確的 numpy 數組，可以進行後續處理
+        original_img = image_data.copy()  # 現在這行會正常工作
+        gray_img = cv2.cvtColor(image_data, cv2.COLOR_BGR2GRAY).astype(np.uint8)
+        
         preprocessed_img = preprocess_image(gray_img, scale_factor, blur_ksize, threshold_value, ifshow)
         contours, hierarchy = cv2.findContours(preprocessed_img, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
         hierarchy = hierarchy[0]
@@ -296,14 +315,20 @@ def process_upload_image(image_data, width, height):
                 start_j = np.array(total_ctrl_pts[j][0])
                 if np.linalg.norm(end_i - start_j) <= 2:
                     total_ctrl_pts[j][0] = tuple(end_i)
-        showimg(original_img)
+        if testmode:
+            """
+            # 畫綠色特徵點
+            for point in rdp_points:
+                final = cv2.circle(final, (int(point[0]), int(point[1])), 5, (255, 0, 0), -1)
+            """
+            image_base64.append(encode_image_to_base64(original_img))
         return True
 
     except Exception as e:
         import traceback
         error_message = traceback.format_exc()
         print("❌ process_upload 發生錯誤：", error_message)
-       
+        return False      
                 
 
 @app.route('/upload', methods=['POST'])
@@ -317,25 +342,25 @@ def upload():
     
     # 嘗試獲取 Base64 編碼的圖片數據
     image_data = request.json.get("image")
-
     thread = None
     response_message = "Received successfully\n"
 
     if paths is not None and len(paths) > 0:
         # 處理繪圖點模式
-        custom_print(0,"Received paths:"+str(paths))
+        custom_print("Received paths:"+str(paths))
         thread = process_upload(width, height, paths, testmode == 'true')
         
     elif image_data is not None and len(image_data) > 0:
         # 處理 Base64 編碼圖片模式
-        custom_print(1,"Received image data (Base64).")
+        custom_print("Received image data (Base64).")
+        
         # 將 image_data 和 width, height 傳遞給 process_upload_image
-        thread = threading.Thread(target=process_upload_image, args=(image_data, width, height))
+        thread = threading.Thread(target=process_upload_image, args=(image_data, width, height, testmode == 'true'))
         
     else:
         # 如果既沒有 points 也沒有 image 數據
         response_message = "No valid data (points or image) received.\n"
-        custom_print(1,response_message)
+        custom_print(response_message)
         return jsonify({"message": response_message}), 400 # 返回 400 Bad Request
     if thread:
         thread.start()

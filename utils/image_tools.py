@@ -6,6 +6,7 @@ import base64
 from .server_tools import *
 import svgwrite
 from collections import defaultdict
+from PIL import Image
 # ================================================================
 # ✅ 影像處理相關常用工具（預處理、輪廓、疊圖、儲存、SVG輸出等）
 # ================================================================
