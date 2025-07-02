@@ -315,13 +315,13 @@ def process_upload_image(image_data, width, height, testmode):
                 start_j = np.array(total_ctrl_pts[j][0])
                 if np.linalg.norm(end_i - start_j) <= 2:
                     total_ctrl_pts[j][0] = tuple(end_i)
-        if testmode:
+        
             """
             # 畫綠色特徵點
             for point in rdp_points:
                 final = cv2.circle(final, (int(point[0]), int(point[1])), 5, (255, 0, 0), -1)
             """
-            image_base64.append(encode_image_to_base64(original_img))
+        image_base64.append(encode_image_to_base64(original_img))
         return True
 
     except Exception as e:
