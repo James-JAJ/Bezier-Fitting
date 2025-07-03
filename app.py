@@ -24,7 +24,7 @@ console_output_ref = [console_output]
 set_console_output_ref(console_output_ref)
 
 image_base64 = []
-beizer_array = []
+beizer_array = [] #this
 version = "V25.4.4"
 
 
@@ -50,12 +50,16 @@ def get_message():
     
     message = console_output_ref[0]  # 取得當前 console_output 的內容
     console_output_ref[0] = ""       # 清空 console_output 字串
-    
+
     if beizer_array:
         beizers_list = []
-        for x, y in beizer_array.pop(0):
-            beizers_list.append((int(x), int(y)))
-        return jsonify({"message": message, "beizers": beizers_list})   
+        for sublist in beizer_array:
+            for x, y in sublist:
+                beizers_list.append((int(x), int(y)))
+        beizer_array=[]
+        return jsonify({"message": message, "beizers": beizers_list})
+        #return jsonify({"message": "123"})
+           
     elif image_base64:                    #如果有圖片
          image_base64_1 = image_base64.pop(0)   #複製圖片供回覆
          return jsonify({"message": message, "imageBase64": image_base64_1})
@@ -141,11 +145,7 @@ def process_upload(width, height, contours, testmode):
                         custom_print(f"⚠️ Line {i} 沒產生曲線點")
                     elif np.count_nonzero(cv2.cvtColor(final.copy(), cv2.COLOR_BGR2GRAY)) == 0:
                         custom_print(f"⚠️ Line {i} 畫完仍為全黑圖")
-                        
-            
-                
                  #存檔用
-            
             """
             try:
                 save_dir = os.path.join(os.getcwd(), "img")
@@ -185,12 +185,6 @@ def process_upload(width, height, contours, testmode):
                 final = combined
                 cv2.imwrite(os.path.join(save_dir, f"{value:.5f}_{len(custom_points)}_output.png"),final)
             """
-            
-            
-            
-            
-
-
 
             if testmode:
                 """
@@ -212,6 +206,7 @@ def process_upload(width, height, contours, testmode):
             print("❌ process_upload 發生錯誤：", error_message)
 
 def process_upload_image(image_data, width, height, testmode):
+    global beizer_array, image_base64
     # 這是處理 Base64 編碼圖片的函數
     scale_factor = 2 
     final_shrink_factor = 0.5 
@@ -295,8 +290,10 @@ def process_upload_image(image_data, width, height, testmode):
             for i in range(len(custom_idx) - 1):
                 start = custom_idx[i]
                 end = custom_idx[i + 1]
-                target_curve = path[start:end]
+                target_curve = path[start:end+1]
                 target_curve = np.array([(int(p[0]), int(p[1])) for p in target_curve])
+                if len(target_curve)<5:
+                    continue
                 ctrl_pts = fit_least_squares_bezier(target_curve)
 
                 curve_pts = bezier_curve_calculate(ctrl_pts)
@@ -307,21 +304,11 @@ def process_upload_image(image_data, width, height, testmode):
                 hierarchy_levels.append(contour_levels[contour_idx])
 
         # 閉合修正
+        #print("A",len(beizer_array))
         for i in range(len(total_ctrl_pts)):
-            end_i = np.array(total_ctrl_pts[i][3])
-            for j in range(len(total_ctrl_pts)):
-                if i == j:
-                    continue
-                start_j = np.array(total_ctrl_pts[j][0])
-                if np.linalg.norm(end_i - start_j) <= 2:
-                    total_ctrl_pts[j][0] = tuple(end_i)
-        
-            """
-            # 畫綠色特徵點
-            for point in rdp_points:
-                final = cv2.circle(final, (int(point[0]), int(point[1])), 5, (255, 0, 0), -1)
-            """
-        image_base64.append(encode_image_to_base64(original_img))
+            beizer_array.append(total_ctrl_pts[i])
+        #print("B",len(beizer_array))
+        #image_base64.append(encode_image_to_base64(original_img))
         return True
 
     except Exception as e:
@@ -380,3 +367,4 @@ if __name__ == '__main__':
     #http_port = 32222 #for bezier.hmi.tw
     #http_port = 8000 #for localhost
     app.run(host="0.0.0.0", port=http_port, threaded=False)
+
