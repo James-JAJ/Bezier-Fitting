@@ -273,6 +273,8 @@ def process_upload_image(image_data, width, height, testmode):
         for contour_idx, contour in enumerate(contours):
             fixcontour = [sublist[0] for sublist in contour]
             fixcontour = remove_consecutive_duplicates(fixcontour)
+
+            #print(fixcontour[0],fixcontour[-1])
             raw_points.extend(fixcontour)
 
             custom_points, custom_idx = svcfp(
@@ -287,13 +289,19 @@ def process_upload_image(image_data, width, height, testmode):
                 ifserver=0
             )
             path = fixcontour
+            temp=[]
+            print(custom_idx)
+            #custom_idx[-1]=custom_idx[0]
+
+            custom_idx= remove_close_points(custom_idx,5)
+
             for i in range(len(custom_idx) - 1):
                 start = custom_idx[i]
                 end = custom_idx[i + 1]
                 target_curve = path[start:end+1]
+                if i==len(custom_idx) -2:
+                    target_curve.append(path[0])
                 target_curve = np.array([(int(p[0]), int(p[1])) for p in target_curve])
-                if len(target_curve)<5:
-                    continue
                 ctrl_pts = fit_least_squares_bezier(target_curve)
 
                 curve_pts = bezier_curve_calculate(ctrl_pts)

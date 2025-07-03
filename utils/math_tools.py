@@ -40,43 +40,50 @@ def remove_duplicates(arr):
             seen.add(item)
             result.append(item)
     return result
-def remove_close_points(path, points, first_point, last_point, threshold):
-    """ 在路徑中移除相近的點，但保留首尾點
-    Args:
-        path (list): 完整路徑點列表
-        points (list): 要篩選的點列表
-        first_point, last_point (tuple): 首尾點座標
-        threshold (int): 距離閾值（以路徑索引為單位）
-    Returns:
-        list: 篩選後的點列表，包含首尾點
-    ⚠️ 備註:
-    - threshold 是以路徑中點的索引距離為單位，非歐幾里得距離
-    - 會自動處理倒數第二點與終點過近的情況
-    - 首尾點一定會被保留
-    """
-    if not points:
-        return []
-    
-    path_index = {point: i for i, point in enumerate(path)}
-
-    filtered_points = [first_point]  # 保留首點
-    last_kept_index = path_index[first_point]  # 追蹤上一次保留點的索引
-
-    for point in points:
-        if point in {first_point, last_point}:  # 跳過首尾點
-            continue
-
-        current_index = path_index[point]
-        if current_index - last_kept_index >= threshold:
-            filtered_points.append(point)
-            last_kept_index = current_index  # 更新最後保留的點索引
-    
-    # 如果倒數第二個點離終點太近，則刪除
-    if len(filtered_points) > 2 and path_index[filtered_points[-2]] + threshold >= path_index[last_point]:
-        filtered_points.pop(-2)
-    
-    filtered_points.append(last_point)  # 保留尾點
-    return filtered_points
+def remove_close_points(path, threshold):
+   """ 在路徑中移除相近的點，但保留首尾點
+   Args:
+       path (list): 路徑點列表
+       threshold (int): 距離閾值（以路徑索引為單位）
+   Returns:
+       list: 篩選後的點列表，包含首尾點
+   ⚠️ 備註:
+   - threshold 是以路徑中點的索引距離為單位，非歐幾里得距離
+   - 首項如果與後項太近，保留首項，捨棄後項
+   - 首尾點一定會被保留
+   """
+   if len(path) <= 2:
+       return path
+   
+   filtered_points = [path[0]]  # 保留首項
+   
+   # 從第一個點開始檢查到倒數第二個點
+   for i in range(len(path) - 1):
+       current_point = path[i]
+       next_point = path[i + 1]
+       
+       # 如果是首項，特殊處理
+       if i == 0:
+           # 首項與後項的距離如果超過閾值，則保留後項
+           if abs(i - (i + 1)) >= threshold:
+               filtered_points.append(next_point)
+           # 如果首項與後項太近，保留首項，捨棄後項（已經保留首項了）
+           continue
+       
+       # 對於非首項，檢查當前項與後項的距離
+       if abs(i - (i + 1)) <= threshold:
+           # 如果當前項還沒被加入，且不是最後一項
+           if current_point not in filtered_points and i != len(path) - 1:
+               filtered_points.append(current_point)
+           # 如果後項不是最後一項，加入後項
+           if i + 1 != len(path) - 1:
+               filtered_points.append(next_point)
+   
+   # 必定保留尾項
+   if path[-1] not in filtered_points:
+       filtered_points.append(path[-1])
+   
+   return filtered_points
 def add_mid_points(path, rivise_points, threshold):
     """ 在兩點間距離過大時添加中間點
     Args:
