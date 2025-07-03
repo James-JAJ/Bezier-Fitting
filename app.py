@@ -289,8 +289,6 @@ def process_upload_image(image_data, width, height, testmode):
                 ifserver=0
             )
             path = fixcontour
-            temp=[]
-            print(custom_idx)
             #custom_idx[-1]=custom_idx[0]
 
             custom_idx= remove_close_points(custom_idx,5)
@@ -317,6 +315,7 @@ def process_upload_image(image_data, width, height, testmode):
             beizer_array.append(total_ctrl_pts[i])
         #print("B",len(beizer_array))
         #image_base64.append(encode_image_to_base64(original_img))
+        custom_print("COMPLETE!")
         return True
 
     except Exception as e:
