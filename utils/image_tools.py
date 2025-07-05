@@ -7,6 +7,12 @@ from .server_tools import *
 import svgwrite
 from collections import defaultdict
 from PIL import Image
+from typing import List, Tuple, Optional
+import math
+
+# 類型別名
+Point = Tuple[float, float]
+BezierCurve = Tuple[Point, Point, Point, Point]  # (p0, p1, p2, p3)
 # ================================================================
 # ✅ 影像處理相關常用工具（預處理、輪廓、疊圖、儲存、SVG輸出等）
 # ================================================================
@@ -210,7 +216,6 @@ def fill_small_contours(img, area_threshold=3000):
         result[line_mask > 0] = [0, 0, 255]
 
     return result
-
 
 
 
