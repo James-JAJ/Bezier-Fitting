@@ -263,7 +263,7 @@ def process_upload_image(image_data, width, height, testmode):
         hierarchy = hierarchy[0]
 
         contours = shrink_contours(contours, final_shrink_factor)
-        total_ctrl_pts = []
+        layers = []
         hierarchy_levels = []
         contour_levels = get_contour_levels(hierarchy)
 
@@ -271,6 +271,7 @@ def process_upload_image(image_data, width, height, testmode):
         fitted_points = []    # 擬合貝茲曲線點
 
         for contour_idx, contour in enumerate(contours):
+            layer=[]
             fixcontour = [sublist[0] for sublist in contour]
             fixcontour = remove_consecutive_duplicates(fixcontour)
 
@@ -306,13 +307,12 @@ def process_upload_image(image_data, width, height, testmode):
                 fitted_points.extend(curve_pts)
                 draw_curve_on_image(original_img, curve_pts)
 
-                total_ctrl_pts.append(ctrl_pts)
+                layer.append(ctrl_pts)
                 hierarchy_levels.append(contour_levels[contour_idx])
-
+            layers.append(layer)
         # 閉合修正
-        #print("A",len(beizer_array))
-        for i in range(len(total_ctrl_pts)):
-            beizer_array.append(total_ctrl_pts[i])
+        print(layers)
+    
         #print("B",len(beizer_array))
         #image_base64.append(encode_image_to_base64(original_img))
         custom_print("COMPLETE!")

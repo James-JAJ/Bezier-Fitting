@@ -391,80 +391,9 @@ def fit_fixed_end_bspline(points):
         return [tuple(P0)] * 4
 
     return [tuple(P0), tuple(P1), tuple(P2), tuple(P3)]
-
-def gss_global_structure_similarity(contours1, contours2, num_points=100):
-    """GSS：全域形狀距離 + 質心距離"""
-    def resample_center(path, num=100):
-        if len(path) < 2:
-            return np.tile(path[0], (num, 1))
-        dists = np.cumsum([0] + [np.linalg.norm(path[i] - path[i-1]) for i in range(1, len(path))])
-        dists /= dists[-1] if dists[-1] != 0 else 1
-        target = np.linspace(0, 1, num)
-        x = np.interp(target, dists, path[:, 0])
-        y = np.interp(target, dists, path[:, 1])
-        return np.stack([x, y], axis=1), np.mean(path, axis=0)
-
-    points1 = np.vstack([c.squeeze() for c in contours1 if len(c) >= 5])
-    points2 = np.vstack([c.squeeze() for c in contours2 if len(c) >= 5])
-    if len(points1) < 2 or len(points2) < 2:
-        return 0.0
-
-    A, c1 = resample_center(points1, num_points)
-    B, c2 = resample_center(points2, num_points)
-
-    dists = np.linalg.norm(A - B, axis=1)
-    shape_score = 1 / (1 + np.mean(dists))
-    center_score = 1 / (1 + np.linalg.norm(c1 - c2) / 100)
-
-    return (shape_score * 0.7 + center_score * 0.3)
-
-def nss_normalized_shape_similarity(contours1, contours2, num_points=100):
-    """NSS：正規化空間內平均點差"""
-    def normalize(path):
-        center = np.mean(path, axis=0)
-        scale = np.max(np.linalg.norm(path - center, axis=1))
-        return (path - center) / scale if scale > 0 else path
-
-    def resample(path, num=100):
-        if len(path) < 2:
-            return np.tile(path[0], (num, 1))
-        dists = np.cumsum([0] + [np.linalg.norm(path[i] - path[i-1]) for i in range(1, len(path))])
-        dists /= dists[-1] if dists[-1] != 0 else 1
-        target = np.linspace(0, 1, num)
-        x = np.interp(target, dists, path[:, 0])
-        y = np.interp(target, dists, path[:, 1])
-        return np.stack([x, y], axis=1)
-
-    points1 = np.vstack([c.squeeze() for c in contours1 if len(c) >= 5])
-    points2 = np.vstack([c.squeeze() for c in contours2 if len(c) >= 5])
-    if len(points1) < 2 or len(points2) < 2:
-        return 0.0
-
-    A = normalize(resample(points1, num_points))
-    B = normalize(resample(points2, num_points))
-
-    return float(np.clip(1 - np.mean(np.linalg.norm(A - B, axis=1)), 0, 1))
-
-def lss_local_shape_structure(contours1, contours2):
-    """LSS：局部輪廓長度與密度差異"""
-    def get_lengths(contours):
-        return [cv2.arcLength(c, False) for c in contours if len(c) >= 5]
-
-    lengths1 = get_lengths(contours1)
-    lengths2 = get_lengths(contours2)
-
-    if len(lengths1) == 0 or len(lengths2) == 0:
-        return 0.0
-
-    min_len = min(len(lengths1), len(lengths2))
-    l1 = np.sort(lengths1)[:min_len]
-    l2 = np.sort(lengths2)[:min_len]
-
-    diff = np.abs(np.array(l1) - np.array(l2))
-    return float(np.clip(1 - np.mean(diff) / (np.mean(l1 + l2) / 2 + 1e-5), 0, 1))
-
 def scs_shape_similarity(A, B):
     """
+    (BMND)
     對稱距離相似度計算
     自動處理輪廓轉點雲，然後計算相似度
     
@@ -512,4 +441,6 @@ def scs_shape_similarity(A, B):
     avg_dist = (mean_min_distance(points_A, points_B) + mean_min_distance(points_B, points_A)) / 2
     sim = 1 / (1 + avg_dist)
     return (sim*100)**1.05
+                
+
 
