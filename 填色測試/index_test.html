@@ -30,7 +30,7 @@
             pointer-events: none;
             z-index: 1; /* 設定 z-index 為 1 */
             width: 100%;
-            height: 100%;
+            height: 100%;            
             border: 1px solid black; /* 加入這行，與 canvas 的邊框一致 */
 
         }
@@ -349,27 +349,33 @@
         
         // 將 beizers 陣列轉換為適合繪製貝茲曲線的格式
         function showBeizer(beizers) {
-            const points = [];
-            for (let i = 0; i < beizers.length; i += 4) {
-              if (i + 3 < beizers.length) {
-                points.push([
-                  beizers[i],
-                  beizers[i + 1],
-                  beizers[i + 2],
-                  beizers[i + 3]
-                ]);
-              }
-            }
-
-            // 畫在 svg
-            points.forEach(curvePoints => {
-                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-                path.setAttribute('d', `M ${curvePoints[0][0]} ${curvePoints[0][1]} C ${curvePoints[1][0]} ${curvePoints[1][1]} ${curvePoints[2][0]} ${curvePoints[2][1]} ${curvePoints[3][0]} ${curvePoints[3][1]}`);
-                path.setAttribute('stroke', 'red');
-                path.setAttribute('stroke-width', '2'); 
-                path.setAttribute('fill', 'transparent');
-                svg.appendChild(path);
-            });
+            // 清空 SVG 內容，避免重複繪製
+            
+            svg.innerHTML = '';
+                beizers.forEach(contour => {
+                    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                    let pathData = '';
+                    
+                    contour.forEach((curve, index) => {
+                        const [p0, p1, p2, p3] = curve; // 四個控制點
+                        
+                        if (index === 0) {
+                            // 第一條曲線：移動到起點
+                            pathData += `M ${p0[0]} ${p0[1]} `;
+                        }
+                        
+                        // 添加貝茲曲線
+                        pathData += `C ${p1[0]} ${p1[1]} ${p2[0]} ${p2[1]} ${p3[0]} ${p3[1]} `;
+                    });
+                    
+                    pathData += 'Z'; // 封閉路徑
+                    
+                    path.setAttribute('d', pathData.trim());
+                    path.setAttribute('stroke', 'red');
+                    path.setAttribute('stroke-width', '2'); 
+                    path.setAttribute('fill', 'transparent');
+                    svg.appendChild(path);
+                });
             btnDownload.disabled = false;
         }
         function updateConsole() {
@@ -399,9 +405,9 @@
                         };
                     }
                     // 有貝茲資料時畫在 svg 上
-                    if (data.beizers) {
+                    if (data.layers) {
                         consoleCounter = 10;  // 最多再訪問 /message 頁面 5 次(秒)
-                        showBeizer(data.beizers);
+                        showBeizer(data.layers);
                     }
                     console.log("Data sent successfully");
                     btnSend.disabled = false;

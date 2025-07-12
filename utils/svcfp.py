@@ -330,7 +330,7 @@ def svcfp(paths, min_radius=10, max_radius=50, curvature_threshold=27, rdp_epsil
             candidate_breakpoints.insert(0, 0)
         if len(simplified_points) - 1 not in candidate_breakpoints:
             candidate_breakpoints.append(len(simplified_points) - 1)
-
+    
     # 長距離段落處理和方向變化檢測
     extended_breakpoints = []
     for i in range(len(candidate_breakpoints) - 1):

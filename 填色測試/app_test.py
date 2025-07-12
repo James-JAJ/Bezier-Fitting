@@ -40,7 +40,7 @@ def ver_js():
 def serve_index():
     #return send_from_directory('.', 'index_ver_25.3.30.0.html')
     #版本碼不要在檔名上，直接在 index.html 程式碼內
-    return send_from_directory('.', 'index.html')
+    return send_from_directory('.', 'index_test.html')
     
 @app.route('/message')
 def get_message():
@@ -50,7 +50,7 @@ def get_message():
     
     message = console_output_ref[0]  # 取得當前 console_output 的內容
     console_output_ref[0] = ""       # 清空 console_output 字串
-
+    """
     if beizer_array:
         beizers_list = []
         for sublist in beizer_array:
@@ -59,6 +59,31 @@ def get_message():
         beizer_array=[]
         return jsonify({"message": message, "beizers": beizers_list})
         #return jsonify({"message": "123"})
+    """
+    if beizer_array:
+        try:
+            # 遞歸轉換函數，處理所有 numpy 類型
+            def convert_to_serializable(obj):
+                if isinstance(obj, np.ndarray):
+                    return obj.tolist()
+                elif isinstance(obj, np.integer):  # 處理 numpy 整數類型
+                    return int(obj)
+                elif isinstance(obj, np.floating):  # 處理 numpy 浮點數類型
+                    return float(obj)
+                elif isinstance(obj, list):
+                    return [convert_to_serializable(item) for item in obj]
+                elif isinstance(obj, tuple):
+                    return [convert_to_serializable(item) for item in obj]
+                else:
+                    return obj
+            
+            serializable_layers = convert_to_serializable(beizer_array)
+            
+            return jsonify({"message": message, "layers": serializable_layers})
+        
+        except Exception as e:
+            print(f"序列化錯誤: {e}")
+            return jsonify({"error": str(e)}), 500
            
     elif image_base64:                    #如果有圖片
          image_base64_1 = image_base64.pop(0)   #複製圖片供回覆
@@ -213,7 +238,7 @@ def process_upload_image(image_data, width, height, testmode):
     blur_ksize = 3 
     threshold_value = 200 
     rdp_epsilon = 4 
-    curvature_threshold = 40 
+    curvature_threshold = 41 
     min_radius = 10 
     max_radius = 50 
     insert_threshold = 100 
@@ -263,7 +288,7 @@ def process_upload_image(image_data, width, height, testmode):
         hierarchy = hierarchy[0]
 
         contours = shrink_contours(contours, final_shrink_factor)
-        total_ctrl_pts = []
+        
         hierarchy_levels = []
         contour_levels = get_contour_levels(hierarchy)
 
@@ -271,6 +296,7 @@ def process_upload_image(image_data, width, height, testmode):
         fitted_points = []    # 擬合貝茲曲線點
 
         for contour_idx, contour in enumerate(contours):
+            layer=[]
             fixcontour = [sublist[0] for sublist in contour]
             fixcontour = remove_consecutive_duplicates(fixcontour)
 
@@ -306,13 +332,14 @@ def process_upload_image(image_data, width, height, testmode):
                 fitted_points.extend(curve_pts)
                 draw_curve_on_image(original_img, curve_pts)
 
-                total_ctrl_pts.append(ctrl_pts)
+                layer.append(ctrl_pts)
                 hierarchy_levels.append(contour_levels[contour_idx])
+            beizer_array.append(layer)
         # 閉合修正
-        for i in range(len(total_ctrl_pts)):
-            beizer_array.append(total_ctrl_pts[i])
+        
         #print("B",len(beizer_array))
         #image_base64.append(encode_image_to_base64(original_img))
+        #print(beizer_array)
         custom_print("COMPLETE!")
         return True
 
@@ -321,7 +348,6 @@ def process_upload_image(image_data, width, height, testmode):
         error_message = traceback.format_exc()
         print("❌ process_upload 發生錯誤：", error_message)
         return False      
-                
 
 @app.route('/upload', methods=['POST'])
 def upload():
@@ -368,7 +394,7 @@ if __name__ == '__main__':
     name = 'CNN_model_500_Final.h5'
     model = tf.keras.models.load_model(name,custom_objects={'euclidean_distance_loss': euclidean_distance_loss})
     """
-    http_port = 4000 #for nodered1.hmi.tw
+    http_port = 41881 #for nodered1.hmi.tw
     #http_port = 32222 #for bezier.hmi.tw
     #http_port = 8000 #for localhost
     app.run(host="0.0.0.0", port=http_port, threaded=False)

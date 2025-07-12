@@ -125,11 +125,15 @@ def preprocess_image(img_gray, scale_factor=2, blur_ksize=3, threshold_value=200
     💡 常用於準備輪廓提取（如 cv2.findContours）
     """
     height, width = img_gray.shape
+    """
     resized = cv2.resize(img_gray, (width * scale_factor, height * scale_factor), interpolation=cv2.INTER_CUBIC)
     showimg(resized, "resized", ifshow)
     blurred = cv2.GaussianBlur(resized, (blur_ksize, blur_ksize), 0)
     showimg(blurred, "blurred", ifshow)
-    _, binary = cv2.threshold(blurred, threshold_value, 255, cv2.THRESH_BINARY_INV)
+    """
+    resized = cv2.resize(img_gray, (width * scale_factor, height * scale_factor), interpolation=cv2.INTER_CUBIC)
+    showimg(resized, "resized", ifshow)
+    _, binary = cv2.threshold(resized, threshold_value, 255, cv2.THRESH_BINARY_INV)
     showimg(binary, "binary", ifshow)
     return binary
 def getContours(binary_img, ifshow=0):
